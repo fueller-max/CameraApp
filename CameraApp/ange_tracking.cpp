@@ -4,16 +4,18 @@
 // Define a static reference vector or axis if needed (Default is the horizontal X-axis: 0 degrees)
 const double STATIC_AXIS_ANGLE = 0.0;
 
-void processAndFindRotation(const cv::Mat& raw_amplitude) {
-    // 1. Image Preparation & Filtering
+int processAndFindRotation(const cv::Mat& raw_amplitude) {
+
+    double relative_angle = 0.0;
+    // Image Preparation & Filtering
     cv::Mat visual_8u, blurred, threshed;
     cv::normalize(raw_amplitude, visual_8u, 0, 255, cv::NORM_MINMAX, CV_8UC1);
 
     // Smooth out ToF sensor noise
     cv::GaussianBlur(visual_8u, blurred, cv::Size(5, 5), 0);
 
-    // 2. Thresholding to segment the object from the background
-    // Adjust the '100' threshold value based on your object's reflectivity/distance
+    // Thresholding to segment the object from the background
+    // Adjust the threshold value based on object's reflectivity/distance
     cv::threshold(blurred, threshed, 100, 255, cv::THRESH_BINARY);
 
     // 3. Contour Extraction
@@ -25,7 +27,7 @@ void processAndFindRotation(const cv::Mat& raw_amplitude) {
     cv::Mat display_output;
     cv::cvtColor(visual_8u, display_output, cv::COLOR_GRAY2BGR);
 
-    // 4. Isolate the largest detected object (ignoring background specks)
+    // Isolate the largest detected object (ignoring background specks)
     double max_area = 0;
     int largest_contour_idx = -1;
 
@@ -51,7 +53,7 @@ void processAndFindRotation(const cv::Mat& raw_amplitude) {
          }
 
         // Compute relative rotation angle against your static baseline axis
-         double relative_angle = detected_angle -  STATIC_AXIS_ANGLE;
+          relative_angle = detected_angle -  STATIC_AXIS_ANGLE;
 
         // 6. Visualization & UI Overlay
         // Draw the contours
@@ -88,6 +90,7 @@ void processAndFindRotation(const cv::Mat& raw_amplitude) {
     cv::imshow("Object Tracking & Angle Detection", enlarged_output);
 
     // Display the live localized object tracking feed
-    //cv::imshow("Object Tracking & Angle Detection", display_output);
-     cv::waitKey(0);
+    cv::waitKey(0);
+
+    return  static_cast<int>(relative_angle);
 }

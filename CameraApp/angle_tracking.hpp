@@ -5,4 +5,4 @@
 #include <cmath>
 #include <opencv2/opencv.hpp>
 
-void processAndFindRotation(const cv::Mat& raw_amplitude);
+int processAndFindRotation(const cv::Mat& raw_amplitude);

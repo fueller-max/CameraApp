@@ -437,4 +437,5 @@ FodyWeavers.xsd
 *.sln
 *.vcxproj
 *.vcxproj.*
+NuGet/
 # End of https://www.toptal.com/developers/gitignore/api/visualstudio,c++

@@ -14,7 +14,7 @@ ClientSession::~ClientSession() {
 }
 
 void ClientSession::start() {
-    std::cout << "Client connected: " << socket_.remote_endpoint() << std::endl;
+    std::cout << "PLC connected: " << socket_.remote_endpoint() << std::endl;
     do_read();
 }
 
@@ -73,7 +73,7 @@ Server::Server(asio::io_context& io_context, short port,
     inbound_queue_(inbound_queue),
     check_queue_timer_(io_context) {
 
-    std::cout << "Server starting on port " << port << "...\n";
+    std::cout << "TCP Server starting on port " << port << "...\n";
     do_accept();
     process_outbound_queue();
 }

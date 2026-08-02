@@ -23,7 +23,7 @@ bool CameraConnector::Connect(const std::string& ip_address) {
     try {
         device_ = ifm3d::Device::MakeShared(ip_address);
         if (device_) {
-            std::cout << "Device object created: " << device_.get() << std::endl;
+            std::cout << "Connection to camera with IP: " << device_->IP() << " was successful!" << std::endl;
             return true;
         }
     }
