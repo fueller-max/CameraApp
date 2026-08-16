@@ -9,6 +9,9 @@
 #include <algorithm>
 #include <cstring>
 
+#include "thread_safe_queue.h" 
+#include "PLCMessage.h"
+
 using asio::ip::tcp;
 
 // Forward declarations to handle circular dependency
@@ -43,7 +46,7 @@ private:
 class Server {
 public:
     Server(asio::io_context& io_context, short port,
-        ThreadSafeQueue<int>& outbound_queue,
+        ThreadSafeQueue<PLCMessage>& outbound_queue,
         ThreadSafeQueue<int>& inbound_queue);
 
     void broadcast_bytes(const std::vector<uint8_t>& raw_bytes);
@@ -56,7 +59,7 @@ private:
     void process_outbound_queue();
 
     tcp::acceptor acceptor_;
-    ThreadSafeQueue<int>& outbound_queue_;
+    ThreadSafeQueue<PLCMessage>& outbound_queue_;
     ThreadSafeQueue<int>& inbound_queue_;
     asio::steady_timer check_queue_timer_;
     std::vector<std::shared_ptr<ClientSession>> active_clients_;

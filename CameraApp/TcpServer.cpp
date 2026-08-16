@@ -1,5 +1,5 @@
-#include "tcp_server.h"
-#include "thread_safe_queue.h" 
+#include "TcpServer.h"
+
 
 // ==========================================
 // CLIENT SESSION IMPLEMENTATION
@@ -66,7 +66,7 @@ void ClientSession::do_write_external() {
 // ==========================================
 
 Server::Server(asio::io_context& io_context, short port,
-    ThreadSafeQueue<int>& outbound_queue,
+    ThreadSafeQueue<PLCMessage>& outbound_queue,
     ThreadSafeQueue<int>& inbound_queue)
     : acceptor_(io_context, tcp::endpoint(tcp::v4(), port)),
     outbound_queue_(outbound_queue),
@@ -114,13 +114,12 @@ void Server::do_accept() {
 }
 
 void Server::process_outbound_queue() {
-    int outgoing_integer = 0;
-    while (outbound_queue_.try_pop(outgoing_integer)) {
-        std::vector<uint8_t> byte_packet(sizeof(int));
-        std::memcpy(byte_packet.data(), &outgoing_integer, sizeof(int));
-        broadcast_bytes(byte_packet);
+    PLCMessage outgoing_message{};
+    while (outbound_queue_.try_pop(outgoing_message)) {
+      //  std::vector<uint8_t> byte_packet(sizeof(outgoing_message));
+       // std::memcpy(byte_packet.data(), &outgoing_message.serialize(), sizeof(outgoing_message));
+        broadcast_bytes(outgoing_message.serialize());
     }
-
 
     check_queue_timer_.expires_after(std::chrono::milliseconds(50));
     check_queue_timer_.async_wait([this](std::error_code ec) {

@@ -1,5 +1,5 @@
 
-#include "angle_tracking.hpp"
+#include "AngleTracking.hpp"
 
 // Define a static reference vector or axis if needed (Default is the horizontal X-axis: 0 degrees)
 const double STATIC_AXIS_ANGLE = 0.0;
@@ -84,13 +84,13 @@ int processAndFindRotation(const cv::Mat& raw_amplitude) {
     cv::resize(display_output, enlarged_output, cv::Size(), 3.0, 3.0, cv::INTER_NEAREST);
 
     // Open an explicit named window that allows resizing if needed
-    cv::namedWindow("Object Tracking & Angle Detection", cv::WINDOW_AUTOSIZE);
+  //  cv::namedWindow("Object Tracking & Angle Detection", cv::WINDOW_AUTOSIZE);
 
     // Push the frame out
-    cv::imshow("Object Tracking & Angle Detection", enlarged_output);
+   // cv::imshow("Object Tracking & Angle Detection", enlarged_output);
 
     // Display the live localized object tracking feed
-    cv::waitKey(0);
+   // cv::waitKey(0);
 
     return  static_cast<int>(relative_angle);
 }

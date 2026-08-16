@@ -1,9 +1,10 @@
 
-#include "tcp_server.h"
+#include "TcpServer.h"
 #include "thread_safe_queue.h"
 #include "CameraConnector.h"
 #include "FrameGrabber.h"
-#include "angle_tracking.hpp"
+#include "AngleTracking.hpp"
+#include "PLCMessage.h"
 #include <asio.hpp>
 #include <iostream>
 #include <chrono>
@@ -55,20 +56,20 @@ int main() {
     // }
 
     // 1. Connection routine 
-    CameraConnector camera;
-    const std::string camera_ip = "10.24.150.118";
+   // CameraConnector camera;
+   // const std::string camera_ip = "10.24.150.118";
 
-    if (!camera.Connect(camera_ip)) {
-        WaitForUser();
-        return EXIT_FAILURE;
-    }
+   // if (!camera.Connect(camera_ip)) {
+   //     WaitForUser();
+   //     return EXIT_FAILURE;
+  //  }
 
     // 2. Fetch Port
-     uint16_t pcic_port = camera.GetPcicPort();
-     std::cout << "Successfully retrieved PCIC Port: " << pcic_port << std::endl;
+   //  uint16_t pcic_port = camera.GetPcicPort();
+  //   std::cout << "Successfully retrieved PCIC Port: " << pcic_port << std::endl;
     
     // 3. Instantiate the FrameGrabber
-     FrameGrabber fg = FrameGrabber(camera.GetDevice(), pcic_port);
+     //FrameGrabber fg = FrameGrabber(camera.GetDevice(), pcic_port);
 
      //std::tuple<ifm3d::Buffer, ifm3d::Buffer> buffer = fg.Acquire();
 
@@ -82,7 +83,7 @@ int main() {
     try {
         asio::io_context io_context;
 
-        ThreadSafeQueue<int> outbound_pipeline; //  server  -> clients
+        ThreadSafeQueue<PLCMessage> outbound_pipeline; //  server  -> clients
         ThreadSafeQueue<int> inbound_pipeline;  //  clients -> server 
 
         Server server(io_context, 2030, outbound_pipeline, inbound_pipeline);
@@ -92,11 +93,16 @@ int main() {
         // If new data is avialble -> trigger camera, get pic, calculate relative_angle
         // and push into outbound_pipeline for sending back to PLC
       
-        std::thread inbound_consumer([&inbound_pipeline, &outbound_pipeline, &fg]() {
+        // std::thread inbound_consumer([&inbound_pipeline, &outbound_pipeline, &fg]() {
+        std::thread inbound_consumer([&inbound_pipeline, &outbound_pipeline]() {
             int received_value = 0;
             while (true) {
                 // Poll the queue every 50ms for data from PLC
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+
+                PLCMessage  plc_message_outgoing {};
+
+                outbound_pipeline.push(plc_message_outgoing);
 
                 while (inbound_pipeline.try_pop(received_value)) {
 
@@ -108,14 +114,14 @@ int main() {
                     if (received_value == 20) {
                         std::cout << " Request for Camera 2 triggering has been provided " << std::endl;
                 
-                        std::tuple<ifm3d::Buffer, ifm3d::Buffer> buffer = fg.Acquire();
+                        //std::tuple<ifm3d::Buffer, ifm3d::Buffer> buffer = fg.Acquire();
 
-                        auto ifm_amplitude = std::get<0>(buffer);  // get amplitude from the buffer
-                        auto ifm_distance = std::get<1>(buffer);   // get distance from the buffer
+                       // auto ifm_amplitude = std::get<0>(buffer);  // get amplitude from the buffer
+                       // auto ifm_distance = std::get<1>(buffer);   // get distance from the buffer
 
-                        int relative_angle = PictureProcessAndGetAngle(ifm_amplitude, ifm_distance);
+                      //  int relative_angle = PictureProcessAndGetAngle(ifm_amplitude, ifm_distance);
 
-                        outbound_pipeline.push(relative_angle);
+                        //outbound_pipeline.push(relative_angle);
 
                     }
                 }
