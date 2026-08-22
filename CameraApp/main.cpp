@@ -5,6 +5,8 @@
 #include "FrameGrabber.h"
 #include "AngleTracking.hpp"
 #include "PLCMessage.h"
+#include "CameraData.h"
+#include "AppConfig.h"
 #include <asio.hpp>
 #include <iostream>
 #include <chrono>
@@ -86,7 +88,7 @@ int main() {
         ThreadSafeQueue<PLCMessage> outbound_pipeline; //  server  -> clients
         ThreadSafeQueue<int> inbound_pipeline;  //  clients -> server 
 
-        Server server(io_context, 2030, outbound_pipeline, inbound_pipeline);
+        Server server(io_context, AppConfig::listnening_port, outbound_pipeline, inbound_pipeline);
 
         // --- INBOUND CONSUMER THREAD ---
         //  Check data from PLC every 50 ms
@@ -100,9 +102,11 @@ int main() {
                 // Poll the queue every 50ms for data from PLC
                 std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 
-                PLCMessage  plc_message_outgoing {};
+                CameraData cam2data{true, 8};
 
-                outbound_pipeline.push(plc_message_outgoing);
+                PLCMessage  plc_message_camera {AppConfig::PLCMessage::CAM_DATA_ID, AppConfig::CameraID::CAMERA_2, cam2data.serialize()};
+
+                outbound_pipeline.push(plc_message_camera);
 
                 while (inbound_pipeline.try_pop(received_value)) {
 
