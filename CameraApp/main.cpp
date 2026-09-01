@@ -7,12 +7,14 @@
 #include "PLCMessage.h"
 #include "CameraData.h"
 #include "AppConfig.h"
+#include "MessageHandler.h"
 #include <asio.hpp>
 #include <iostream>
 #include <chrono>
 #include <memory>
 #include <condition_variable>
 #include <opencv2/opencv.hpp>
+
 
 using asio::ip::tcp;
 using namespace std::chrono_literals;
@@ -56,37 +58,44 @@ int main() {
     //    WaitForUser();
     //     return EXIT_FAILURE;
     // }
-
-    // 1. Connection routine 
-   // CameraConnector camera;
-   // const std::string camera_ip = "10.24.150.118";
-
-   // if (!camera.Connect(camera_ip)) {
-   //     WaitForUser();
-   //     return EXIT_FAILURE;
-  //  }
-
-    // 2. Fetch Port
-   //  uint16_t pcic_port = camera.GetPcicPort();
-  //   std::cout << "Successfully retrieved PCIC Port: " << pcic_port << std::endl;
     
-    // 3. Instantiate the FrameGrabber
-     //FrameGrabber fg = FrameGrabber(camera.GetDevice(), pcic_port);
+    // Connection to cameras
+    // Camera 1
+    //...
+    //Camera2
+    CameraConnector camera2;
+    if (!camera2.Connect(AppConfig::cam2_ip)) {
+        WaitForUser();
+        return EXIT_FAILURE;
+    }
 
-     //std::tuple<ifm3d::Buffer, ifm3d::Buffer> buffer = fg.Acquire();
+    // Fetch Port
+    // Camera 1
+    // ...
+    // Camera2
+    uint16_t pcic_port_cam2 = camera2.GetPcicPort();
+    std::cout << "Successfully retrieved PCIC Port: " << pcic_port_cam2 << std::endl;
+    
+    // Instantiate the FrameGrabber
+    // Camera1
+    // ...
+    // Camera 2
+    FrameGrabber fg_2 = FrameGrabber(camera2.GetDevice(), pcic_port_cam2);
 
-    // auto ifm_amplitude = std::get<0>(buffer);  // get amplitude the from buffer
-    // auto ifm_distance = std::get<1>(buffer);   // get distance from the buffer
+    // Make the chain of PLC messages handlers  
+    //auto msg_handler = std::make_shared<MessageHandler>();
 
-     //PictureProcess(ifm_amplitude, ifm_distance);
+    //auto cam1 = std::make_shared<CameraHandler>(fg_1);
+    auto cam2 = std::make_shared<CameraHandler>(fg_2, AppConfig::CameraID::CAMERA_2);
 
-
+    //msg_handler->set_next(cam2);
+    
     //Start TCP server and threads (workers) for incoming/outcomming messages
     try {
         asio::io_context io_context;
 
-        ThreadSafeQueue<PLCMessage> outbound_pipeline; //  server  -> clients
-        ThreadSafeQueue<int> inbound_pipeline;  //  clients -> server 
+        ThreadSafeQueue<PLCMessage> outbound_pipeline;  //  server  -> PLC
+        ThreadSafeQueue<int> inbound_pipeline;          //  PLC -> server 
 
         Server server(io_context, AppConfig::listnening_port, outbound_pipeline, inbound_pipeline);
 
@@ -95,39 +104,16 @@ int main() {
         // If new data is avialble -> trigger camera, get pic, calculate relative_angle
         // and push into outbound_pipeline for sending back to PLC
       
-        // std::thread inbound_consumer([&inbound_pipeline, &outbound_pipeline, &fg]() {
-        std::thread inbound_consumer([&inbound_pipeline, &outbound_pipeline]() {
+        std::thread inbound_consumer([&inbound_pipeline, &outbound_pipeline, &cam2]() {
             int received_value = 0;
             while (true) {
                 // Poll the queue every 50ms for data from PLC
-                std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-
-                CameraData cam2data{true, 8};
-
-                PLCMessage  plc_message_camera {AppConfig::PLCMessage::CAM_DATA_ID, AppConfig::CameraID::CAMERA_2, cam2data.serialize()};
-
-                outbound_pipeline.push(plc_message_camera);
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
                 while (inbound_pipeline.try_pop(received_value)) {
 
-                    if (received_value == 10) {
-                        std::cout << " Request for Camera 1 triggering has been provided " << std::endl;
-                     
-                    }
+                    cam2->handle(received_value, outbound_pipeline);
 
-                    if (received_value == 20) {
-                        std::cout << " Request for Camera 2 triggering has been provided " << std::endl;
-                
-                        //std::tuple<ifm3d::Buffer, ifm3d::Buffer> buffer = fg.Acquire();
-
-                       // auto ifm_amplitude = std::get<0>(buffer);  // get amplitude from the buffer
-                       // auto ifm_distance = std::get<1>(buffer);   // get distance from the buffer
-
-                      //  int relative_angle = PictureProcessAndGetAngle(ifm_amplitude, ifm_distance);
-
-                        //outbound_pipeline.push(relative_angle);
-
-                    }
                 }
             }
             });

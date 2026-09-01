@@ -14,9 +14,8 @@ public:
     CameraConnector() = default;
     ~CameraConnector() = default;
 
-    // Core functionality
     static std::vector<ifm3d::IFMNetworkDevice> DiscoverDevices();
-    bool Connect(const std::string& ip_address);
+    bool Connect(const std::string_view ip_address);
     uint16_t GetPcicPort();
 
     // Getters

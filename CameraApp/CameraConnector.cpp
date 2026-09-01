@@ -17,11 +17,11 @@ std::vector<ifm3d::IFMNetworkDevice> CameraConnector::DiscoverDevices() {
 }
 
 // Establishes connection to a specific camera IP
-bool CameraConnector::Connect(const std::string& ip_address) {
+bool CameraConnector::Connect(const std::string_view ip_address) {
     std::cout << "Trying to connect to camera on IP: " << ip_address << "..." << std::endl;
 
     try {
-        device_ = ifm3d::Device::MakeShared(ip_address);
+        device_ = ifm3d::Device::MakeShared(std::string{ ip_address });
         if (device_) {
             std::cout << "Connection to camera with IP: " << device_->IP() << " was successful!" << std::endl;
             return true;
