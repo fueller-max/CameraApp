@@ -9,22 +9,22 @@ void CameraHandler::process(int received_value, ThreadSafeQueue<PLCMessage>& out
         std::tuple<ifm3d::Buffer, ifm3d::Buffer> buffer = _fg.Acquire();              // trigger a camera and get a buffered pic
         ifm3d::Buffer ifm_amplitude = std::get<0>(buffer);                            // get amplitude pic from the buffer
         ifm3d::Buffer ifm_distance  = std::get<1>(buffer);                            // get distance pic from the buffer
-        
-        std::cout << "Get amplutude picture from camera Camera id:" << _camera_id << std::endl;
 
-        std::cout << " Width: " << ifm_amplitude.Width() <<  _camera_id << std::endl;
-        std::cout << " Height: " << ifm_amplitude.Width() << _camera_id << std::endl;
+        cv::Mat amplitude_pic = pictureProcessAndGetAmplitude(ifm_amplitude);               // Amplitude for visu
+        cv::Mat distance_pic_human = pictureProcessAndGetDistanceHuman(ifm_distance);       // Distance for visu (colored)
+        cv::Mat distance_pic = pictureProcessAndGetDistance(ifm_distance);                  //Distnace for analyze
 
-        cv::Mat amplitude_pic = pictureProcessAndGetAmplitude(ifm_amplitude);
-        cv::Mat distance_pic = pictureProcessAndGetDistance(ifm_distance);
-
-        std::tuple<cv::Mat, CameraData>  proc_data = processAndFindRotation(amplitude_pic, g_param_threshold.load(), g_param_min_area.load());
+        // Version for amplitude frame
+        //std::tuple<cv::Mat, CameraData>  proc_data = processAndFindRotationAmpl(amplitude_pic, g_param_threshold.load(), g_param_min_area.load());
          
+        //Version for distance frame
+        std::tuple<cv::Mat, CameraData>  proc_data = processAndFindRotationDist(distance_pic, g_param_threshold.load(), g_param_min_area.load());
+     
         // Use global variables to update pic for GUI
         {                                                                           
             std::lock_guard<std::mutex> lock(g_frame_mutex);                              
             g_shared_frame1 = amplitude_pic.clone();           // Amplitude pic
-            g_shared_frame2 = distance_pic.clone();            // Distance pic
+            g_shared_frame2 = distance_pic_human.clone();      // Distance pic
             g_shared_frame3 = std::get<0>(proc_data).clone();  // Calculated pic                                   
             g_new_frame_available = true;                                            
         }

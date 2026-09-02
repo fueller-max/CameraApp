@@ -1,10 +1,7 @@
 
 #include "angle_tracking.h"
 
-// Define a static reference vector or axis if needed (Default is the horizontal X-axis: 0 degrees)
-const double STATIC_AXIS_ANGLE = 0.0;
-
-std::tuple<cv::Mat, CameraData> processAndFindRotation(const cv::Mat& raw_amplitude, int threshold, int min_area) {
+std::tuple<cv::Mat, CameraData> processAndFindRotationAmpl(const cv::Mat& raw_amplitude, int threshold, int min_area) {
 
     double relative_angle = 0.0;
 
@@ -100,10 +97,104 @@ std::tuple<cv::Mat, CameraData> processAndFindRotation(const cv::Mat& raw_amplit
     cv::Mat enlarged_output;
     // Scale factor
     cv::resize(display_output, enlarged_output, cv::Size(), 1.0, 1.0, cv::INTER_NEAREST);
-
-    return { enlarged_output, { (largest_contour_idx != -1 ), static_cast<int16_t> (relative_angle) } };
+    
+    CameraData cam_data{ (largest_contour_idx != -1), static_cast<int16_t> (relative_angle) };
+   
+    return std::make_tuple( enlarged_output, cam_data );
 }
 
+
+std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_distance, int threshold, int min_area) {
+
+    double relative_angle = 0.0;
+
+    // Create a color background canvas to draw your green/blue UI bounding boxes on
+    cv::Mat display_output;
+
+    // Convert raw data to 8-bit for UI display purposes
+    cv::Mat visual_8u;
+    cv::normalize(raw_distance, visual_8u, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+    cv::applyColorMap(visual_8u, display_output, cv::COLORMAP_JET);
+
+    //=============================================================================
+    //                       Image Preparation & Filtering
+    //=============================================================================
+    cv::Mat blurred, threshed;
+
+    // Smooth out ToF pixel noise 
+    cv::GaussianBlur(visual_8u, blurred, cv::Size(5, 5), 0);
+
+    // Hook: Since the object is DARKER than the conveyor, use THRESH_BINARY_INV.
+    // This turns your dark object white (255) and the bright belt black (0).
+    cv::threshold(blurred, threshed, 0, 255, cv::THRESH_BINARY_INV | cv::THRESH_OTSU); //  use dynamic threshold
+    //cv::threshold(blurred, threshed, threshold, 255, cv::THRESH_BINARY_INV );
+
+    cv::Mat kernel_open = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));   // open ( erase small points - noise)
+    cv::morphologyEx(threshed, threshed, cv::MORPH_OPEN, kernel_open);
+
+    cv::Mat kernel_close = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(20, 20)); // close (use big diliation factor after erossion)
+    cv::morphologyEx(threshed, threshed, cv::MORPH_CLOSE, kernel_close);
+
+    //=============================================================================
+    //                            Contour Extraction
+    //=============================================================================
+    std::vector<std::vector<cv::Point>> contours;
+    std::vector<cv::Vec4i> hierarchy;
+    cv::findContours(threshed, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    double max_area = 0;
+    int largest_contour_idx = -1;
+
+    for (size_t i = 0; i < contours.size(); i++) {
+        double area = cv::contourArea(contours[i]);
+        if (area > max_area && area > min_area) {
+            max_area = area;
+            largest_contour_idx = static_cast<int>(i);
+        }
+    }
+
+    //=============================================================================
+    //                        Rotation angle calculation
+    //============================================================================= 
+    if (largest_contour_idx != -1) {
+        cv::RotatedRect rotated_box = cv::minAreaRect(contours[largest_contour_idx]);
+
+        // Fix for modern OpenCV versions (4.x+): minAreaRect returns angles between 0 and 90 degrees.
+        // It always measures from the horizontal axis down to the first side it meets.
+        double detected_angle = rotated_box.angle;
+
+        if (rotated_box.size.width < rotated_box.size.height) {
+            detected_angle += 90.0;
+        }
+
+        relative_angle = detected_angle - STATIC_AXIS_ANGLE;
+
+        // Draw UI elements over the colorized canvas
+        cv::drawContours(threshed, contours, largest_contour_idx, cv::Scalar(255, 0, 0), 2);
+
+        cv::Point2f vertices[4];
+        rotated_box.points(vertices);
+        for (int i = 0; i < 4; i++) {
+            cv::line(threshed, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 0, 0), 2);
+        }
+
+        // - Mark the center of rotation
+        cv::circle(threshed, rotated_box.center, 5, cv::Scalar(255, 0, 0), -1);
+
+        // - Render the calculated angle onto the frame
+        std::string angle_text = "Rotation: " + cv::format("%.2f", relative_angle) + " deg";
+        cv::putText(threshed, angle_text, cv::Point(10, 20),
+            cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255, 255, 0), 2);
+
+        std::cout << "Object detected at Center [" << rotated_box.center.x << ", " << rotated_box.center.y
+            << "] | Angle: " << relative_angle << "°" << std::endl;
+    }
+
+    
+    CameraData cam_data{ (largest_contour_idx != -1), static_cast<int16_t>(relative_angle) };
+
+    return std::make_tuple(threshed, cam_data);
+}
 
 cv::Mat pictureProcessAndGetAmplitude(ifm3d::Buffer& ifm_amplitude) {
 
@@ -121,7 +212,7 @@ cv::Mat pictureProcessAndGetAmplitude(ifm3d::Buffer& ifm_amplitude) {
 }
 
 
-cv::Mat pictureProcessAndGetDistance(ifm3d::Buffer& ifm_distance) {
+cv::Mat pictureProcessAndGetDistanceHuman(ifm3d::Buffer& ifm_distance) {
 
     //Map ifm3d data structures into OpenCV cv::Mat containers
     // O3D303 natively uses 16-bit unsigned integers (CV_16UC1) for ToF pixel maps
@@ -139,4 +230,11 @@ cv::Mat pictureProcessAndGetDistance(ifm3d::Buffer& ifm_distance) {
 
     return distance_color;
 
+}
+
+cv::Mat pictureProcessAndGetDistance(ifm3d::Buffer& ifm_distance) {
+    
+        // Return the native single-channel 16-bit map directly for processing
+        return cv::Mat(ifm_distance.Height(), ifm_distance.Width(), CV_16UC1, ifm_distance.Ptr<uint16_t>(0));
+    
 }

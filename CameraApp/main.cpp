@@ -100,7 +100,7 @@ int main() {
                 std::this_thread::sleep_for(std::chrono::milliseconds(50));
               
                 while (inbound_pipeline.try_pop(received_value)) {
-                    
+                   
                     cam2->handle(received_value, outbound_pipeline);
 
                 }
