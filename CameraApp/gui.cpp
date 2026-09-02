@@ -1,9 +1,11 @@
 #include "gui.h"
 
 void GuiThreadWorker(std::mutex& g_frame_mutex,
-                     cv::Mat& g_shared_output_frame, 
+                     cv::Mat& g_shared_frame1,
+                     cv::Mat& g_shared_frame2,
+                     cv::Mat& g_shared_frame3,
                      bool& g_new_frame_available, 
-                     std::atomic<float>& g_param_angle,
+                     std::atomic<int>& g_param_min_area,
                      std::atomic<int>& g_param_threshold,
                      std::atomic<bool>& g_app_running) {
 
@@ -56,34 +58,41 @@ void GuiThreadWorker(std::mutex& g_frame_mutex,
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
 
-    cv::Mat ui_local_frame;  //local frame for the picture
-    GLuint ui_texture_id = 0; // The actual OpenGL texture handle
+    cv::Mat ui_local_frame1, ui_local_frame2, ui_local_frame3;          //local frames for the pictures
+    GLuint ui_texture_id1 = 0, ui_texture_id2 = 0, ui_texture_id3 = 0;  // The actual OpenGL texture handles
 
     //Process parameters:
-    float ui_angle = g_param_angle.load();       // Angle
+    int ui_min_area = g_param_min_area.load();   // Min area
     int ui_threshold = g_param_threshold.load(); //Theshold
 
     // Live GUI loop
     while (!glfwWindowShouldClose(window) && g_app_running)
     {
         // Read Windows mouse/keyboard events
-        glfwWaitEventsTimeout(0.033); // Wait for an OS input event OR timeout after 33ms (~30 FPS limit)
+        glfwWaitEventsTimeout(0.040); // Wait for an OS input event OR timeout after 33ms (~30 FPS limit)
 
         // Check for new frames from the vision pipeline
         bool update_texture = false;
         {
             std::lock_guard<std::mutex> lock(g_frame_mutex);
             if (g_new_frame_available) {
-                ui_local_frame = g_shared_output_frame.clone();
+                ui_local_frame1 = g_shared_frame1.clone();
+                ui_local_frame2 = g_shared_frame2.clone();
+                ui_local_frame3 = g_shared_frame3.clone();
                 g_new_frame_available = false;
                 update_texture = true;
             }
         }
 
         // Texture upload safely executes on this thread
-        if (update_texture && !ui_local_frame.empty()) {
-            if (ui_texture_id != 0) glDeleteTextures(1, &ui_texture_id);
-            ui_texture_id = MatToTexture(ui_local_frame); // Call conversion cv:Mat -> Texture
+        if ( update_texture ) {
+            if (ui_texture_id1 != 0) glDeleteTextures(1, &ui_texture_id1);
+            if (ui_texture_id2 != 0) glDeleteTextures(1, &ui_texture_id2);
+            if (ui_texture_id3 != 0) glDeleteTextures(1, &ui_texture_id3);
+
+            if (!ui_local_frame1.empty()) ui_texture_id1 = MatToTexture(ui_local_frame1);
+            if (!ui_local_frame2.empty()) ui_texture_id2 = MatToTexture(ui_local_frame2);
+            if (!ui_local_frame3.empty()) ui_texture_id3 = MatToTexture(ui_local_frame3);
         }
 
         // Start the ImGui frame
@@ -91,21 +100,41 @@ void GuiThreadWorker(std::mutex& g_frame_mutex,
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("Object Tracking & Angle Detection");
-
-        if (ImGui::SliderFloat("Target Angle", &ui_angle, 0.0f, 360.0f)) {
-            g_param_angle.store(ui_angle);
-        }
-        if (ImGui::SliderInt("Threshold", &ui_threshold, 0, 255)) {
-            g_param_threshold.store(ui_threshold);
-        }
+        ImGui::Begin("Camera Angle Detection");
+      
+        // Parameters inputs
+        if (ImGui::SliderInt("Min area limit", &ui_min_area, 10, 500)) { g_param_min_area.store(ui_min_area);}
+        if (ImGui::SliderInt("Threshold", &ui_threshold, 0, 255)) { g_param_threshold.store(ui_threshold);}
 
         ImGui::Separator();
+        ImGui::Text("Processing Images:");
 
-        // Draw the image if it is loaded
-        if (ui_texture_id != 0) {
-            ImGui::Image((void*)(intptr_t)ui_texture_id, ImVec2((float)ui_local_frame.cols, (float)ui_local_frame.rows));
+        // Image 1
+        if (ui_texture_id1 != 0) {
+            ImGui::BeginGroup(); // Bundles text and image together vertically
+            ImGui::Text("Amplitude pic:");
+            ImGui::Image((ImTextureID)(intptr_t)ui_texture_id1, ImVec2(ui_local_frame1.cols, ui_local_frame1.rows));
+            ImGui::EndGroup();
         }
+
+        // Image 2
+        if (ui_texture_id2 != 0) {
+            ImGui::SameLine(); // Forces next element to draw on the right, instead of underneath
+            ImGui::BeginGroup();
+            ImGui::Text("Distance pic:");
+            ImGui::Image((ImTextureID)(intptr_t)ui_texture_id2, ImVec2(ui_local_frame2.cols, ui_local_frame2.rows));
+            ImGui::EndGroup();
+        }
+
+        // Image 3
+        if (ui_texture_id3 != 0) {
+            ImGui::SameLine(); // Forces next element to draw on the right, instead of underneath
+            ImGui::BeginGroup();
+            ImGui::Text("Calculated pic");
+            ImGui::Image((ImTextureID)(intptr_t)ui_texture_id3, ImVec2(ui_local_frame3.cols, ui_local_frame3.rows));
+            ImGui::EndGroup();
+        }
+
 
         ImGui::End();
 
@@ -122,7 +151,9 @@ void GuiThreadWorker(std::mutex& g_frame_mutex,
     }
 
     // --- Clean up on exit
-    if (ui_texture_id != 0) glDeleteTextures(1, &ui_texture_id);
+    if (ui_texture_id1 != 0) glDeleteTextures(1, &ui_texture_id1);
+    if (ui_texture_id2 != 0) glDeleteTextures(1, &ui_texture_id2);
+    if (ui_texture_id3 != 0) glDeleteTextures(1, &ui_texture_id3);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();

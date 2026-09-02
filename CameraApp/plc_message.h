@@ -2,7 +2,7 @@
 #include <cstdint>
 #include "SiemensDateTime.h"
 #include <vector>
-#include "AppConfig.h"
+#include "app_config.h"
 
 class PLCMessage {
 public:

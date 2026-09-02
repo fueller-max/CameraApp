@@ -1,4 +1,4 @@
-#include "CameraData.h"
+#include "camera_data.h"
 
 
 void CameraData::setObjectDetected() {
@@ -8,11 +8,11 @@ void CameraData::setRelativeAngle(uint16_t relativeAngle) {
 	_relativeAngle = relativeAngle;
 }
 //getters:
-bool CameraData::getObjectDetected() {
+bool CameraData::getObjectDetected() const {
 	return _objectDetected;
 }
 
-int16_t CameraData::getRelativeAngle() {
+int16_t CameraData::getRelativeAngle() const {
 	return _relativeAngle;
 }
 

@@ -10,7 +10,7 @@
 #include <cstring>
 
 #include "thread_safe_queue.h" 
-#include "PLCMessage.h"
+#include "plc_message.h"
 
 using asio::ip::tcp;
 

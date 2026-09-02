@@ -1,11 +1,11 @@
 #include "SiemensDateTime.h"
 
 // Utility: Binary-Coded Decimal (BCD) Helpers
-constexpr int bcdToInt(uint8_t bcd) {
+constexpr static int bcdToInt(uint8_t bcd) {
     return ((bcd >> 4) * 10) + (bcd & 0x0F);
 }
 
-constexpr uint8_t intToBcd(int val) {
+constexpr static uint8_t intToBcd(int val) {
     return static_cast<uint8_t>(((val / 10) << 4) | (val % 10));
 }
 
@@ -76,7 +76,7 @@ SiemensDateTime chronoToS7(const std::chrono::system_clock::time_point& tp) {
     int s7Weekday = timeStruct.tm_wday + 1;
 
     // Pack into raw struct output
-    SiemensDateTime dt;
+    SiemensDateTime dt {};
     dt.year = intToBcd(rawYear);
     dt.month = intToBcd(timeStruct.tm_mon + 1);
     dt.day = intToBcd(timeStruct.tm_mday);

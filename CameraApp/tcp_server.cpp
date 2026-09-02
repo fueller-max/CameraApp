@@ -1,4 +1,4 @@
-#include "TcpServer.h"
+#include "tcp_server.h"
 
 
 // ==========================================
@@ -116,8 +116,6 @@ void Server::do_accept() {
 void Server::process_outbound_queue() {
     PLCMessage outgoing_message{};
     while (outbound_queue_.try_pop(outgoing_message)) {
-      //  std::vector<uint8_t> byte_packet(sizeof(outgoing_message));
-       // std::memcpy(byte_packet.data(), &outgoing_message.serialize(), sizeof(outgoing_message));
         broadcast_bytes(outgoing_message.serialize());
     }
 

@@ -11,9 +11,11 @@
 
 
 void GuiThreadWorker(std::mutex& g_frame_mutex, 
-	                 cv::Mat& g_shared_output_frame,
+	                 cv::Mat& g_shared_frame1,
+	                 cv::Mat& g_shared_frame2,
+	                 cv::Mat& g_shared_frame3,
 	                 bool& g_new_frame_available,
-	                 std::atomic<float>& g_param_angle,
+	                 std::atomic<int>& g_param_angle,
 	                 std::atomic<int>& g_param_threshold,
 	                 std::atomic<bool>& g_app_running);
 

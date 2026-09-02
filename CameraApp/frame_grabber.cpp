@@ -1,4 +1,4 @@
-#include "FrameGrabber.h"
+#include "frame_grabber.h"
 #include <chrono>
 #include <memory>
 

@@ -3,9 +3,9 @@
 #include <memory>
 #include <iostream>
 #include "thread_safe_queue.h"
-#include "PLCMessage.h"
-#include "CameraData.h"
-#include "FrameGrabber.h"
+#include "plc_message.h"
+#include "camera_data.h"
+#include "frame_grabber.h"
 
 
 class MessageHandler {

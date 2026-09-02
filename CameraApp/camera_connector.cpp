@@ -1,4 +1,4 @@
-#include "CameraConnector.h"
+#include "camera_connector.h"
 
 // Discovers all available devices on the network
 std::vector<ifm3d::IFMNetworkDevice> CameraConnector::DiscoverDevices() {

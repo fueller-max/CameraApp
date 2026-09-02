@@ -12,8 +12,8 @@ public:
 	void setObjectDetected();
 	void setRelativeAngle(uint16_t relativeAngle);
 	//getters:
-	bool getObjectDetected();
-	int16_t getRelativeAngle();
+	bool getObjectDetected() const;
+	int16_t getRelativeAngle() const;
 
 	std::vector<uint8_t> serialize() const;
 
