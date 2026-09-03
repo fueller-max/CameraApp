@@ -6,6 +6,7 @@
 #include "plc_message.h"
 #include "camera_data.h"
 #include "frame_grabber.h"
+#include "camera_gui_data.h"
 
 
 class MessageHandler {
@@ -39,7 +40,7 @@ protected:
 
 class CameraHandler : public MessageHandler {
 public:
-    CameraHandler(FrameGrabber& fg, AppConfig::CameraID camera_id): _fg(fg), _camera_id(camera_id) {}
+    CameraHandler(FrameGrabber& fg, AppConfig::CameraID camera_id, CameraGuiData& g_cam): _fg(fg), _camera_id(camera_id), _g_cam(g_cam){}
 protected:
     bool can_handle(int received_value) const override {
         return received_value == _camera_id;
@@ -48,4 +49,5 @@ protected:
     void process(int received_value, ThreadSafeQueue<PLCMessage>& outbound_pipeline) override;
     FrameGrabber& _fg;
     AppConfig::CameraID _camera_id;
+    CameraGuiData& _g_cam;
 };

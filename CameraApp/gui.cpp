@@ -1,12 +1,7 @@
 #include "gui.h"
 
-void GuiThreadWorker(std::mutex& g_frame_mutex,
-                     cv::Mat& g_shared_frame1,
-                     cv::Mat& g_shared_frame2,
-                     cv::Mat& g_shared_frame3,
-                     bool& g_new_frame_available, 
-                     std::atomic<int>& g_param_min_area,
-                     std::atomic<int>& g_param_threshold,
+void GuiThreadWorker(CameraGuiData& g_cam1,
+                     CameraGuiData& g_cam2,
                      std::atomic<bool>& g_app_running) {
 
     //  Init GLFW 
@@ -22,7 +17,7 @@ void GuiThreadWorker(std::mutex& g_frame_mutex,
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Create Window & Context
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "Control Panel", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(900, 850, "Camera Control Panel", NULL, NULL);
     if (!window) {
         std::cerr << "[GLFW Error] Failed to create window" << std::endl;
         glfwTerminate();
@@ -58,12 +53,9 @@ void GuiThreadWorker(std::mutex& g_frame_mutex,
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
 
-    cv::Mat ui_local_frame1, ui_local_frame2, ui_local_frame3;          //local frames for the pictures
-    GLuint ui_texture_id1 = 0, ui_texture_id2 = 0, ui_texture_id3 = 0;  // The actual OpenGL texture handles
-
-    //Process parameters:
-    int ui_min_area = g_param_min_area.load();   // Min area
-    int ui_threshold = g_param_threshold.load(); //Theshold
+ 
+    CameraLocalFrames l_cam1;
+    CameraLocalFrames l_cam2;
 
     // Live GUI loop
     while (!glfwWindowShouldClose(window) && g_app_running)
@@ -71,72 +63,14 @@ void GuiThreadWorker(std::mutex& g_frame_mutex,
         // Read Windows mouse/keyboard events
         glfwWaitEventsTimeout(0.040); // Wait for an OS input event OR timeout after 33ms (~30 FPS limit)
 
-        // Check for new frames from the vision pipeline
-        bool update_texture = false;
-        {
-            std::lock_guard<std::mutex> lock(g_frame_mutex);
-            if (g_new_frame_available) {
-                ui_local_frame1 = g_shared_frame1.clone();
-                ui_local_frame2 = g_shared_frame2.clone();
-                ui_local_frame3 = g_shared_frame3.clone();
-                g_new_frame_available = false;
-                update_texture = true;
-            }
-        }
-
-        // Texture upload safely executes on this thread
-        if ( update_texture ) {
-            if (ui_texture_id1 != 0) glDeleteTextures(1, &ui_texture_id1);
-            if (ui_texture_id2 != 0) glDeleteTextures(1, &ui_texture_id2);
-            if (ui_texture_id3 != 0) glDeleteTextures(1, &ui_texture_id3);
-
-            if (!ui_local_frame1.empty()) ui_texture_id1 = MatToTexture(ui_local_frame1);
-            if (!ui_local_frame2.empty()) ui_texture_id2 = MatToTexture(ui_local_frame2);
-            if (!ui_local_frame3.empty()) ui_texture_id3 = MatToTexture(ui_local_frame3);
-        }
-
         // Start the ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("Camera Angle Detection");
-      
-        // Parameters inputs
-        if (ImGui::SliderInt("Min area limit", &ui_min_area, 10, 500)) { g_param_min_area.store(ui_min_area);}
-        if (ImGui::SliderInt("Threshold", &ui_threshold, 0, 255)) { g_param_threshold.store(ui_threshold);}
-
-        ImGui::Separator();
-        ImGui::Text("Processing Images:");
-
-        // Image 1
-        if (ui_texture_id1 != 0) {
-            ImGui::BeginGroup(); // Bundles text and image together vertically
-            ImGui::Text("Amplitude pic:");
-            ImGui::Image((ImTextureID)(intptr_t)ui_texture_id1, ImVec2(ui_local_frame1.cols, ui_local_frame1.rows));
-            ImGui::EndGroup();
-        }
-
-        // Image 2
-        if (ui_texture_id2 != 0) {
-            ImGui::SameLine(); // Forces next element to draw on the right, instead of underneath
-            ImGui::BeginGroup();
-            ImGui::Text("Distance pic:");
-            ImGui::Image((ImTextureID)(intptr_t)ui_texture_id2, ImVec2(ui_local_frame2.cols, ui_local_frame2.rows));
-            ImGui::EndGroup();
-        }
-
-        // Image 3
-        if (ui_texture_id3 != 0) {
-            ImGui::SameLine(); // Forces next element to draw on the right, instead of underneath
-            ImGui::BeginGroup();
-            ImGui::Text("Calculated pic");
-            ImGui::Image((ImTextureID)(intptr_t)ui_texture_id3, ImVec2(ui_local_frame3.cols, ui_local_frame3.rows));
-            ImGui::EndGroup();
-        }
-
-
-        ImGui::End();
+        // update textures for each camera
+         updateCameraTexture(g_cam1, l_cam1, 1);   // Cam 1
+        updateCameraTexture(g_cam2, l_cam2, 2);   // Cam 2
 
         // Rendering commands
         ImGui::Render();
@@ -151,9 +85,8 @@ void GuiThreadWorker(std::mutex& g_frame_mutex,
     }
 
     // --- Clean up on exit
-    if (ui_texture_id1 != 0) glDeleteTextures(1, &ui_texture_id1);
-    if (ui_texture_id2 != 0) glDeleteTextures(1, &ui_texture_id2);
-    if (ui_texture_id3 != 0) glDeleteTextures(1, &ui_texture_id3);
+    cleanTextrue(l_cam1);
+    cleanTextrue(l_cam2);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -186,4 +119,94 @@ GLuint MatToTexture(const cv::Mat& mat) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, rgb.cols, rgb.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb.data);
 
     return textureID;
+}
+
+
+void updateCameraTexture(CameraGuiData& g_cam, CameraLocalFrames& l_cam, int cam_idx) {
+
+    int ui_max_area_limit = g_cam.g_param_max_area.load();   // Max area
+    int ui_min_area_limit = g_cam.g_param_min_area.load();   // Min area
+    int ui_threshold = g_cam.g_param_threshold.load();       //Theshold
+
+    // Check for new frames from the vision pipeline
+    bool update_texture = false;
+    {
+        std::lock_guard<std::mutex> lock(g_cam.g_frame_mutex);
+        if (g_cam.g_new_frame_available) {
+            l_cam.ui_local_frame1 = g_cam.g_shared_frame1.clone();
+            l_cam.ui_local_frame2 = g_cam.g_shared_frame2.clone();
+            l_cam.ui_local_frame3 = g_cam.g_shared_frame3.clone();
+            g_cam.g_new_frame_available = false;
+            update_texture = true;
+        }
+    }
+
+    // Texture upload safely executes on this thread
+    if (update_texture) {
+        if (l_cam.ui_texture_id1 != 0) glDeleteTextures(1, &l_cam.ui_texture_id1);
+        if (l_cam.ui_texture_id2 != 0) glDeleteTextures(1, &l_cam.ui_texture_id2);
+        if (l_cam.ui_texture_id3 != 0) glDeleteTextures(1, &l_cam.ui_texture_id3);
+
+        if (!l_cam.ui_local_frame1.empty()) l_cam.ui_texture_id1 = MatToTexture(l_cam.ui_local_frame1);
+        if (!l_cam.ui_local_frame2.empty()) l_cam.ui_texture_id2 = MatToTexture(l_cam.ui_local_frame2);
+        if (!l_cam.ui_local_frame3.empty()) l_cam.ui_texture_id3 = MatToTexture(l_cam.ui_local_frame3);
+    }
+
+    std::string cam_index = "Camera " + std::to_string(cam_idx);
+
+    // Adjust  numbers based on your picture dimensions and slider spacing
+    ImVec2 fixed_size(850.0f, 400.0f);
+
+    // ImGuiCond_Always forces the layout to respect this size every single time the app runs
+    ImGui::SetNextWindowSize(fixed_size, ImGuiCond_Always);
+
+    // This removes the tiny dragging triangle from the bottom-right corner of the window
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoResize;
+
+    ImGui::Begin(cam_index.c_str(),NULL, window_flags);
+
+    // Parameters inputs
+    if (ImGui::SliderInt("Max area limit", &ui_max_area_limit, 100, 20000)) { g_cam.g_param_max_area.store(ui_max_area_limit); }
+    if (ImGui::SliderInt("Min area limit", &ui_min_area_limit, 10, 1000)) { g_cam.g_param_min_area.store(ui_min_area_limit); }
+    if (ImGui::SliderInt("Threshold", &ui_threshold, 0, 255)) { g_cam.g_param_threshold.store(ui_threshold); }
+
+    ImGui::Separator();
+    ImGui::Text("Processing Images:");
+
+    // Image 1
+    if (l_cam.ui_texture_id1 != 0) {
+        ImGui::BeginGroup(); // Bundles text and image together vertically
+        ImGui::Text("Amplitude pic:");
+        ImGui::Image((ImTextureID)(intptr_t)l_cam.ui_texture_id1, ImVec2(l_cam.ui_local_frame1.cols, l_cam.ui_local_frame1.rows));
+        ImGui::EndGroup();
+    }
+
+    // Image 2
+    if (l_cam.ui_texture_id2 != 0) {
+        ImGui::SameLine(); // Forces next element to draw on the right, instead of underneath
+        ImGui::BeginGroup();
+        ImGui::Text("Distance pic:");
+        ImGui::Image((ImTextureID)(intptr_t)l_cam.ui_texture_id2, ImVec2(l_cam.ui_local_frame2.cols, l_cam.ui_local_frame2.rows));
+        ImGui::EndGroup();
+    }
+
+    // Image 3
+    if (l_cam.ui_texture_id3 != 0) {
+        ImGui::SameLine(); // Forces next element to draw on the right, instead of underneath
+        ImGui::BeginGroup();
+        ImGui::Text("Calculated pic");
+        ImGui::Image((ImTextureID)(intptr_t)l_cam.ui_texture_id3, ImVec2(l_cam.ui_local_frame3.cols, l_cam.ui_local_frame3.rows));
+        ImGui::EndGroup();
+    }
+
+
+    ImGui::End();
+}
+
+void cleanTextrue(CameraLocalFrames& l_cam) {
+
+    if (l_cam.ui_texture_id1 != 0) glDeleteTextures(1, &l_cam.ui_texture_id1);
+    if (l_cam.ui_texture_id2 != 0) glDeleteTextures(1, &l_cam.ui_texture_id2);
+    if (l_cam.ui_texture_id3 != 0) glDeleteTextures(1, &l_cam.ui_texture_id3);
+
 }

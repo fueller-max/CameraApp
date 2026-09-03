@@ -62,20 +62,15 @@ int main() {
     //...
     
     //auto cam1 = std::make_shared<CameraHandler>(fg_1);
-    auto cam2 = std::make_shared<CameraHandler>(fg_2, AppConfig::CameraID::CAMERA_2);
+    auto cam2 = std::make_shared<CameraHandler>(fg_2, AppConfig::CameraID::CAMERA_2, g_cam2);
 
     //msg_handler->set_next(cam2);
 
      //Start GUI proccess
     std::thread gui_thread(
         GuiThreadWorker,
-        std::ref(g_frame_mutex),
-        std::ref(g_shared_frame1),
-        std::ref(g_shared_frame2),
-        std::ref(g_shared_frame3),
-        std::ref(g_new_frame_available),
-        std::ref(g_param_min_area),
-        std::ref(g_param_threshold),
+        std::ref(g_cam1),
+        std::ref(g_cam2),
         std::ref(g_app_running)
     );
 
@@ -97,7 +92,7 @@ int main() {
             int received_value = 0;
             while (true) {
                 // Poll the queue every 50ms for data from PLC
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));        
               
                 while (inbound_pipeline.try_pop(received_value)) {
                    

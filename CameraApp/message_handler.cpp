@@ -18,19 +18,21 @@ void CameraHandler::process(int received_value, ThreadSafeQueue<PLCMessage>& out
         //std::tuple<cv::Mat, CameraData>  proc_data = processAndFindRotationAmpl(amplitude_pic, g_param_threshold.load(), g_param_min_area.load());
          
         //Version for distance frame
-        std::tuple<cv::Mat, CameraData>  proc_data = processAndFindRotationDist(distance_pic, g_param_threshold.load(), g_param_min_area.load());
-     
-        // Use global variables to update pic for GUI
-        {                                                                           
-            std::lock_guard<std::mutex> lock(g_frame_mutex);                              
-            g_shared_frame1 = amplitude_pic.clone();           // Amplitude pic
-            g_shared_frame2 = distance_pic_human.clone();      // Distance pic
-            g_shared_frame3 = std::get<0>(proc_data).clone();  // Calculated pic                                   
-            g_new_frame_available = true;                                            
+        std::tuple<cv::Mat, CameraData>  proc_data = processAndFindRotationDist(distance_pic, 
+                                                                                _g_cam.g_param_threshold.load(),
+                                                                                _g_cam.g_param_min_area.load(),
+                                                                                _g_cam.g_param_max_area.load());
+        {  // Update data for GUI
+            std::lock_guard<std::mutex> lock(_g_cam.g_frame_mutex);
+            _g_cam.g_shared_frame1 = amplitude_pic.clone();           // Amplitude pic
+            _g_cam.g_shared_frame2 = distance_pic_human.clone();      // Distance pic
+            _g_cam.g_shared_frame3 = std::get<0>(proc_data).clone();  // Calculated pic                                   
+            _g_cam.g_new_frame_available = true;
         }
 
         // Extract and prepare data for sending to PLC
-        CameraData cam_data{ std::get<1>(proc_data).getObjectDetected(), std::get<1>(proc_data).getRelativeAngle()}; 
+        CameraData cam_data{ std::get<1>(proc_data).getObjectDetected(), 
+                             std::get<1>(proc_data).getRelativeAngle()}; 
         
         PLCMessage plc_message_camera{
             AppConfig::PLCMessage::CAM_DATA_ID,

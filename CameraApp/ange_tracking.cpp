@@ -104,7 +104,7 @@ std::tuple<cv::Mat, CameraData> processAndFindRotationAmpl(const cv::Mat& raw_am
 }
 
 
-std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_distance, int threshold, int min_area) {
+std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_distance, int threshold, int min_area_limit, int max_area_limit) {
 
     double relative_angle = 0.0;
 
@@ -127,13 +127,13 @@ std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_di
     // Hook: Since the object is DARKER than the conveyor, use THRESH_BINARY_INV.
     // This turns your dark object white (255) and the bright belt black (0).
     cv::threshold(blurred, threshed, 0, 255, cv::THRESH_BINARY_INV | cv::THRESH_OTSU); //  use dynamic threshold
-    //cv::threshold(blurred, threshed, threshold, 255, cv::THRESH_BINARY_INV );
+   // cv::threshold(blurred, threshed, threshold, 255, cv::THRESH_BINARY_INV );
 
     cv::Mat kernel_open = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));   // open ( erase small points - noise)
     cv::morphologyEx(threshed, threshed, cv::MORPH_OPEN, kernel_open);
 
-    cv::Mat kernel_close = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(20, 20)); // close (use big diliation factor after erossion)
-    cv::morphologyEx(threshed, threshed, cv::MORPH_CLOSE, kernel_close);
+   // cv::Mat kernel_close = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)); // close (diliation  erossion)
+   // cv::morphologyEx(threshed, threshed, cv::MORPH_CLOSE, kernel_close);
 
     //=============================================================================
     //                            Contour Extraction
@@ -146,8 +146,13 @@ std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_di
     int largest_contour_idx = -1;
 
     for (size_t i = 0; i < contours.size(); i++) {
+        
         double area = cv::contourArea(contours[i]);
-        if (area > max_area && area > min_area) {
+
+        if (area > max_area && 
+            area > min_area_limit && 
+            area < max_area_limit)
+        {
             max_area = area;
             largest_contour_idx = static_cast<int>(i);
         }
@@ -170,7 +175,7 @@ std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_di
         relative_angle = detected_angle - STATIC_AXIS_ANGLE;
 
         // Draw UI elements over the colorized canvas
-        cv::drawContours(threshed, contours, largest_contour_idx, cv::Scalar(255, 0, 0), 2);
+        //cv::drawContours(threshed, contours, largest_contour_idx, cv::Scalar(255, 0, 0), 2);
 
         cv::Point2f vertices[4];
         rotated_box.points(vertices);
