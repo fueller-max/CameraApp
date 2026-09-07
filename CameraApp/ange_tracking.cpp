@@ -104,7 +104,14 @@ std::tuple<cv::Mat, CameraData> processAndFindRotationAmpl(const cv::Mat& raw_am
 }
 
 
-std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_distance, int threshold, int min_area_limit, int max_area_limit) {
+std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_distance, 
+                                                           int threshold, 
+                                                           int min_area_limit, 
+                                                           int max_area_limit,
+                                                           int errosion_hor,
+                                                           int errosion_vert,
+                                                           int dilitation_hor,
+                                                           int dilitation_vert) {
 
     double relative_angle = 0.0;
 
@@ -129,10 +136,10 @@ std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_di
     cv::threshold(blurred, threshed, 0, 255, cv::THRESH_BINARY_INV | cv::THRESH_OTSU); //  use dynamic threshold
    // cv::threshold(blurred, threshed, threshold, 255, cv::THRESH_BINARY_INV );
 
-    cv::Mat kernel_open = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));   // open ( erase small points - noise)
+    cv::Mat kernel_open = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(errosion_hor, errosion_vert));   // open ( erase small points)
     cv::morphologyEx(threshed, threshed, cv::MORPH_OPEN, kernel_open);
 
-   // cv::Mat kernel_close = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3)); // close (diliation  erossion)
+   // cv::Mat kernel_close = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(dilitation_hor, dilitation_vert)); // close (diliation  erossion)
    // cv::morphologyEx(threshed, threshed, cv::MORPH_CLOSE, kernel_close);
 
     //=============================================================================

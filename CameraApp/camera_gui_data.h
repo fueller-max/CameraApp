@@ -19,5 +19,9 @@ struct CameraGuiData {
     // Atomic parameters (GUI Thread <-> OpenCV Thread) 
     std::atomic<int> g_param_max_area{ 10000 };
     std::atomic<int> g_param_min_area{ 200 };
+    std::atomic<int> g_param_errosion_hor{ 0 };
+    std::atomic<int> g_param_errosion_vert{ 0 };
+    std::atomic<int> g_param_dilitation_hor{ 0 };
+    std::atomic<int> g_param_dilitation_vert{ 0 };
     std::atomic<int> g_param_threshold{ 100 };
 };

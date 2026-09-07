@@ -17,7 +17,14 @@ const double STATIC_AXIS_ANGLE = 0.0;
 std::tuple<cv::Mat, CameraData> processAndFindRotationAmpl(const cv::Mat& raw_amplitude, int threshold, int min_area);
 
 // process a frame and calculate relative angle - version for Distance frame!
-std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_distance, int threshold, int min_area, int max_area);
+std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_distance,
+                                                           int threshold,
+                                                           int min_area_limit,
+                                                           int max_area_limit,
+                                                           int errosion_hor,
+                                                           int errosion_vert,
+                                                           int dillitation_hor,
+                                                           int dillitation_vert);
 
 cv::Mat pictureProcessAndGetAmplitude(ifm3d::Buffer& ifm_amplitude);
 

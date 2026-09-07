@@ -21,7 +21,11 @@ void CameraHandler::process(int received_value, ThreadSafeQueue<PLCMessage>& out
         std::tuple<cv::Mat, CameraData>  proc_data = processAndFindRotationDist(distance_pic, 
                                                                                 _g_cam.g_param_threshold.load(),
                                                                                 _g_cam.g_param_min_area.load(),
-                                                                                _g_cam.g_param_max_area.load());
+                                                                                _g_cam.g_param_max_area.load(),
+                                                                                _g_cam.g_param_errosion_hor.load(),
+                                                                                _g_cam.g_param_errosion_vert.load(),
+                                                                                _g_cam.g_param_dilitation_hor.load(),
+                                                                                _g_cam.g_param_dilitation_vert.load());
         {  // Update data for GUI
             std::lock_guard<std::mutex> lock(_g_cam.g_frame_mutex);
             _g_cam.g_shared_frame1 = amplitude_pic.clone();           // Amplitude pic

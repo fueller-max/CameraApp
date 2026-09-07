@@ -126,6 +126,10 @@ void updateCameraTexture(CameraGuiData& g_cam, CameraLocalFrames& l_cam, int cam
 
     int ui_max_area_limit = g_cam.g_param_max_area.load();   // Max area
     int ui_min_area_limit = g_cam.g_param_min_area.load();   // Min area
+    int ui_errosion_hor = g_cam.g_param_errosion_hor.load();   // Errosion  horizontal
+    int ui_errosion_vert = g_cam.g_param_errosion_vert.load(); // Errosion  vertical
+    int ui_dilitation_hor = g_cam.g_param_dilitation_hor.load();   // Dillitation  horizontal
+    int ui_dilitation_vert = g_cam.g_param_dilitation_vert.load(); // Dillitation  vertical
     int ui_threshold = g_cam.g_param_threshold.load();       //Theshold
 
     // Check for new frames from the vision pipeline
@@ -168,6 +172,10 @@ void updateCameraTexture(CameraGuiData& g_cam, CameraLocalFrames& l_cam, int cam
     // Parameters inputs
     if (ImGui::SliderInt("Max area limit", &ui_max_area_limit, 100, 20000)) { g_cam.g_param_max_area.store(ui_max_area_limit); }
     if (ImGui::SliderInt("Min area limit", &ui_min_area_limit, 10, 1000)) { g_cam.g_param_min_area.store(ui_min_area_limit); }
+    if (ImGui::SliderInt("Errosion, horizontal", &ui_errosion_hor, 0, 100)) { g_cam.g_param_errosion_hor.store(ui_errosion_hor); }
+    if (ImGui::SliderInt("Errosion, vertical", &ui_errosion_vert, 0, 100)) { g_cam.g_param_errosion_vert.store(ui_errosion_vert); }
+    if (ImGui::SliderInt("Dilitation, horizontal", &ui_dilitation_hor, 0, 100)) { g_cam.g_param_dilitation_hor.store(ui_dilitation_hor); }
+    if (ImGui::SliderInt("Dilitation, vertical", &ui_dilitation_vert, 0, 100)) { g_cam.g_param_dilitation_vert.store(ui_dilitation_vert); }
     if (ImGui::SliderInt("Threshold", &ui_threshold, 0, 255)) { g_cam.g_param_threshold.store(ui_threshold); }
 
     ImGui::Separator();
