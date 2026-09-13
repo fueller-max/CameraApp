@@ -1,4 +1,5 @@
 #include "gui.h"
+#include "saved_settings.h"
 
 void GuiThreadWorker(CameraGuiData& g_cam1,
                      CameraGuiData& g_cam2,
@@ -69,7 +70,7 @@ void GuiThreadWorker(CameraGuiData& g_cam1,
         ImGui::NewFrame();
 
         // update textures for each camera
-         updateCameraTexture(g_cam1, l_cam1, 1);   // Cam 1
+        updateCameraTexture(g_cam1, l_cam1, 1);   // Cam 1
         updateCameraTexture(g_cam2, l_cam2, 2);   // Cam 2
 
         // Rendering commands
@@ -82,6 +83,47 @@ void GuiThreadWorker(CameraGuiData& g_cam1,
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
+
+        if (saved_settings::g_settings_dirty) {
+            // Accumulate the time passed since the last frame
+        saved_settings::g_save_timer += ImGui::GetIO().DeltaTime;
+
+            // If the user hasn't touched anything for 1.5 seconds, commit to disk
+            if (saved_settings::g_save_timer >= saved_settings::SAVE_DELAY_THRESHOLD) {
+                saved_settings::SavedSettings snapshot_cam1{};
+                snapshot_cam1.param_max_area = g_cam1.g_param_max_area.load();
+                snapshot_cam1.param_min_area = g_cam1.g_param_min_area.load();
+				snapshot_cam1.param_errosion_hor = g_cam1.g_param_errosion_hor.load();
+				snapshot_cam1.param_errosion_vert = g_cam1.g_param_errosion_vert.load();
+				snapshot_cam1.param_dilitation_hor = g_cam1.g_param_dilitation_hor.load();
+				snapshot_cam1.param_dilitation_vert = g_cam1.g_param_dilitation_vert.load();
+				snapshot_cam1.param_threshold = g_cam1.g_param_threshold.load();
+
+                saved_settings::SavedSettings snapshot_cam2{};
+                snapshot_cam2.param_max_area = g_cam2.g_param_max_area.load();
+                snapshot_cam2.param_min_area = g_cam2.g_param_min_area.load();
+                snapshot_cam2.param_errosion_hor = g_cam2.g_param_errosion_hor.load();
+                snapshot_cam2.param_errosion_vert = g_cam2.g_param_errosion_vert.load();
+                snapshot_cam2.param_dilitation_hor = g_cam2.g_param_dilitation_hor.load();
+                snapshot_cam2.param_dilitation_vert = g_cam2.g_param_dilitation_vert.load();
+                snapshot_cam2.param_threshold = g_cam2.g_param_threshold.load();
+
+
+                saved_settings::DualCameraSettings masterSnapshot;
+                masterSnapshot.cam1 = snapshot_cam1;
+                masterSnapshot.cam2 = snapshot_cam2;
+
+                // Binary writing logic -> write settings on disk
+                std::ofstream outFile(saved_settings::filename, std::ios::binary);
+                if (outFile) {
+                    outFile.write(reinterpret_cast<const char*>(&masterSnapshot), sizeof(saved_settings::DualCameraSettings));
+                }
+
+                // Reset dirty state
+                saved_settings::g_settings_dirty = false;
+                saved_settings::g_save_timer = 0.0f;
+            }
+        }
     }
 
     // --- Clean up on exit
@@ -170,13 +212,25 @@ void updateCameraTexture(CameraGuiData& g_cam, CameraLocalFrames& l_cam, int cam
     ImGui::Begin(cam_index.c_str(),NULL, window_flags);
 
     // Parameters inputs
-    if (ImGui::SliderInt("Max area limit", &ui_max_area_limit, 100, 20000)) { g_cam.g_param_max_area.store(ui_max_area_limit); }
-    if (ImGui::SliderInt("Min area limit", &ui_min_area_limit, 10, 1000)) { g_cam.g_param_min_area.store(ui_min_area_limit); }
-    if (ImGui::SliderInt("Errosion, horizontal", &ui_errosion_hor, 0, 100)) { g_cam.g_param_errosion_hor.store(ui_errosion_hor); }
-    if (ImGui::SliderInt("Errosion, vertical", &ui_errosion_vert, 0, 100)) { g_cam.g_param_errosion_vert.store(ui_errosion_vert); }
-    if (ImGui::SliderInt("Dilitation, horizontal", &ui_dilitation_hor, 0, 100)) { g_cam.g_param_dilitation_hor.store(ui_dilitation_hor); }
-    if (ImGui::SliderInt("Dilitation, vertical", &ui_dilitation_vert, 0, 100)) { g_cam.g_param_dilitation_vert.store(ui_dilitation_vert); }
-    if (ImGui::SliderInt("Threshold", &ui_threshold, 0, 255)) { g_cam.g_param_threshold.store(ui_threshold); }
+    if (ImGui::SliderInt("Max area limit", &ui_max_area_limit, 100, 20000)) { 
+        g_cam.g_param_max_area.store(ui_max_area_limit);
+        saved_settings::make_settings_dirty();
+    }
+    if (ImGui::SliderInt("Min area limit", &ui_min_area_limit, 10, 1000)) { 
+        g_cam.g_param_min_area.store(ui_min_area_limit);
+        saved_settings::make_settings_dirty();
+    }
+    if (ImGui::SliderInt("Errosion, horizontal", &ui_errosion_hor, 0, 100)) { 
+        g_cam.g_param_errosion_hor.store(ui_errosion_hor);
+        saved_settings::make_settings_dirty();
+    }
+    if (ImGui::SliderInt("Errosion, vertical", &ui_errosion_vert, 0, 100)) { 
+        g_cam.g_param_errosion_vert.store(ui_errosion_vert);
+        saved_settings::make_settings_dirty();
+    }
+   // if (ImGui::SliderInt("Dilitation, horizontal", &ui_dilitation_hor, 0, 100)) { g_cam.g_param_dilitation_hor.store(ui_dilitation_hor); }
+   // if (ImGui::SliderInt("Dilitation, vertical", &ui_dilitation_vert, 0, 100)) { g_cam.g_param_dilitation_vert.store(ui_dilitation_vert); }
+   // if (ImGui::SliderInt("Threshold", &ui_threshold, 0, 255)) { g_cam.g_param_threshold.store(ui_threshold); }
 
     ImGui::Separator();
     ImGui::Text("Processing Images:");

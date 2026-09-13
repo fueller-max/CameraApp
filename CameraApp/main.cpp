@@ -7,6 +7,7 @@
 #include "app_config.h"
 #include "message_handler.h"
 #include "gui.h"
+#include "saved_settings.h"
 #include <asio.hpp>
 #include <iostream>
 #include <chrono>
@@ -36,35 +37,40 @@ int main() {
 
     // Connection to cameras
     // Camera 1
-    //...
+    //CameraConnector camera1;
+    //if (!camera1.Connect(AppConfig::cam1_ip)) {
+    //    WaitForUser();
+    //    return EXIT_FAILURE;
+    //}
     //Camera2
-    CameraConnector camera2;
-    if (!camera2.Connect(AppConfig::cam2_ip)) {
-        WaitForUser();
-        return EXIT_FAILURE;
-    }
+    //CameraConnector camera2;
+    //if (!camera2.Connect(AppConfig::cam2_ip)) {
+    //    WaitForUser();
+    //    return EXIT_FAILURE;
+    //}
 
     // Fetch Port
     // Camera 1
-    // ...
+    //uint16_t pcic_port_cam1 = camera1.GetPcicPort();
+    //std::cout << "Successfully retrieved PCIC Port: " << pcic_port_cam1 << std::endl;
     // Camera2
-    uint16_t pcic_port_cam2 = camera2.GetPcicPort();
-    std::cout << "Successfully retrieved PCIC Port: " << pcic_port_cam2 << std::endl;
+    //uint16_t pcic_port_cam2 = camera2.GetPcicPort();
+    //std::cout << "Successfully retrieved PCIC Port: " << pcic_port_cam2 << std::endl;
 
     // Instantiate the FrameGrabber
     // Camera1
-    // ...
+    //FrameGrabber fg_1 = FrameGrabber(camera1.GetDevice(), pcic_port_cam1);
     // Camera 2
-    FrameGrabber fg_2 = FrameGrabber(camera2.GetDevice(), pcic_port_cam2);
+    //FrameGrabber fg_2 = FrameGrabber(camera2.GetDevice(), pcic_port_cam2);
 
-    // Make the chain of PLC messages handlers  
-  
-    //...
-    
-    //auto cam1 = std::make_shared<CameraHandler>(fg_1);
-    auto cam2 = std::make_shared<CameraHandler>(fg_2, AppConfig::CameraID::CAMERA_2, g_cam2);
+    // Make the chain of PLC messages handlers   
+    //auto cam1 = std::make_shared<CameraHandler>(fg_1, AppConfig::CameraID::CAMERA_1, g_cam1);
+    //auto cam2 = std::make_shared<CameraHandler>(fg_2, AppConfig::CameraID::CAMERA_2, g_cam2);
 
-    //msg_handler->set_next(cam2);
+    //cam1->set_next(cam2);
+
+    // Load Camera settings from disk 
+    saved_settings::initializeProgramSettings(g_cam1, g_cam2);
 
      //Start GUI proccess
     std::thread gui_thread(
@@ -88,7 +94,7 @@ int main() {
         // If new data is avialble -> trigger camera, get pic, calculate relative_angle
         // and push into outbound_pipeline for sending back to PLC
 
-        std::thread inbound_consumer([&inbound_pipeline, &outbound_pipeline, &cam2]() {
+        std::thread inbound_consumer([&inbound_pipeline, &outbound_pipeline]() {
             int received_value = 0;
             while (true) {
                 // Poll the queue every 50ms for data from PLC
@@ -96,7 +102,7 @@ int main() {
               
                 while (inbound_pipeline.try_pop(received_value)) {
                    
-                    cam2->handle(received_value, outbound_pipeline);
+                    //cam1->handle(received_value, outbound_pipeline);
 
                 }
             }
