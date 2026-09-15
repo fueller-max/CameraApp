@@ -11,6 +11,7 @@
 
 #include "thread_safe_queue.h" 
 #include "plc_message.h"
+#include "logger.h"
 
 using asio::ip::tcp;
 
@@ -23,7 +24,7 @@ template <typename T> class ThreadSafeQueue;
 // ==========================================
 class ClientSession : public std::enable_shared_from_this<ClientSession> {
 public:
-    ClientSession(tcp::socket socket, Server& server);
+    ClientSession(tcp::socket socket, Server& server, Logger& logger);
     ~ClientSession();
 
     void start();
@@ -38,6 +39,8 @@ private:
     Server& server_;
     char read_buffer_[sizeof(int)];
     std::deque<std::vector<uint8_t>> write_queue_;
+
+    Logger& logger_;
 };
 
 // ==========================================
@@ -47,7 +50,8 @@ class Server {
 public:
     Server(asio::io_context& io_context, short port,
         ThreadSafeQueue<PLCMessage>& outbound_queue,
-        ThreadSafeQueue<int>& inbound_queue);
+        ThreadSafeQueue<int>& inbound_queue,
+        Logger& logger);
 
     void broadcast_bytes(const std::vector<uint8_t>& raw_bytes);
     void push_to_inbound_queue(int value);
@@ -64,4 +68,5 @@ private:
     asio::steady_timer check_queue_timer_;
     std::vector<std::shared_ptr<ClientSession>> active_clients_;
     std::mutex clients_mutex_;
+    Logger& logger_;
 };

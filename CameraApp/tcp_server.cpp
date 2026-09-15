@@ -5,8 +5,8 @@
 // CLIENT SESSION IMPLEMENTATION
 // ==========================================
 
-ClientSession::ClientSession(tcp::socket socket, Server & server)
-    : socket_(std::move(socket)), server_(server) {
+ClientSession::ClientSession(tcp::socket socket, Server & server, Logger& logger)
+    : socket_(std::move(socket)), server_(server), logger_(logger) {
 }
 
 ClientSession::~ClientSession() {
@@ -14,7 +14,9 @@ ClientSession::~ClientSession() {
 }
 
 void ClientSession::start() {
-    std::cout << "PLC connected: " << socket_.remote_endpoint() << std::endl;
+
+    logger_.log("INFO") << "PLC connected : " << socket_.remote_endpoint();
+
     do_read();
 }
 
@@ -67,13 +69,16 @@ void ClientSession::do_write_external() {
 
 Server::Server(asio::io_context& io_context, short port,
     ThreadSafeQueue<PLCMessage>& outbound_queue,
-    ThreadSafeQueue<int>& inbound_queue)
+    ThreadSafeQueue<int>& inbound_queue,
+    Logger& logger)
     : acceptor_(io_context, tcp::endpoint(tcp::v4(), port)),
     outbound_queue_(outbound_queue),
     inbound_queue_(inbound_queue),
-    check_queue_timer_(io_context) {
+    check_queue_timer_(io_context),
+    logger_(logger){
 
-    std::cout << "TCP Server starting on port " << port << "...\n";
+    logger_.log("INFO") << "TCP Server starting on port " << port;
+
     do_accept();
     process_outbound_queue();
 }
@@ -105,7 +110,7 @@ void Server::do_accept() {
     acceptor_.async_accept(
         [this](std::error_code ec, tcp::socket socket) {
             if (!ec) {
-                auto new_client = std::make_shared<ClientSession>(std::move(socket), *this);
+                auto new_client = std::make_shared<ClientSession>(std::move(socket), *this, logger_);
                 register_client(new_client);
                 new_client->start();
             }

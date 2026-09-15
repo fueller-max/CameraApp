@@ -7,6 +7,7 @@
 #include "camera_data.h"
 #include "frame_grabber.h"
 #include "camera_gui_data.h"
+#include "logger.h"
 
 
 class MessageHandler {

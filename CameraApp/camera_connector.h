@@ -8,11 +8,14 @@
 #include <limits>
 #include <ifm3d/device.h>
 #include <ifm3d/fg.h>
+#include "logger.h"
 
 class CameraConnector {
 public:
     CameraConnector() = default;
     ~CameraConnector() = default;
+
+    CameraConnector(Logger& logger);
 
     static std::vector<ifm3d::IFMNetworkDevice> DiscoverDevices();
     bool Connect(const std::string_view ip_address);
@@ -24,4 +27,6 @@ public:
 
 private:
     std::shared_ptr<ifm3d::Device> device_{ nullptr };
+    Logger& logger_;
+
 };

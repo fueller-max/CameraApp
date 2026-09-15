@@ -1,5 +1,8 @@
 #include "camera_connector.h"
 
+//Constructor
+CameraConnector::CameraConnector(Logger& logger): logger_(logger) {}
+
 // Discovers all available devices on the network
 std::vector<ifm3d::IFMNetworkDevice> CameraConnector::DiscoverDevices() {
     auto devices = ifm3d::Device::DeviceDiscovery();
@@ -18,20 +21,22 @@ std::vector<ifm3d::IFMNetworkDevice> CameraConnector::DiscoverDevices() {
 
 // Establishes connection to a specific camera IP
 bool CameraConnector::Connect(const std::string_view ip_address) {
-    std::cout << "Trying to connect to camera on IP: " << ip_address << "..." << std::endl;
+
+    logger_.log("INFO") << "Trying to connect to camera on IP: " << ip_address;
 
     try {
         device_ = ifm3d::Device::MakeShared(std::string{ ip_address });
         if (device_) {
-            std::cout << "Connection to camera with IP: " << device_->IP() << " was successful!" << std::endl;
+            logger_.log("INFO") << "Connection to camera with IP: " << device_->IP() << " was successful!";
             return true;
         }
     }
     catch (const std::exception& e) {
-        std::cerr << "Error connecting to device: " << e.what() << std::endl;
+
+        logger_.log("ERROR") << "Error connecting to device: " << e.what();
     }
 
-    std::cerr << "Failed to create device object." << std::endl;
+    logger_.log("ERROR") << "Failed to create device object."; 
     device_ = nullptr;
     return false;
 }
@@ -56,7 +61,7 @@ uint16_t CameraConnector::GetPcicPort() {
         return static_cast<uint16_t>(port_int);
     }
     catch (const std::exception& e) {
-        std::cerr << "Error reading PCIC port: " << e.what() << std::endl;
+        logger_.log("ERROR") << "Error reading PCIC port: " << e.what();
         throw;
     }
 }

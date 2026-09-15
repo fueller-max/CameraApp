@@ -24,4 +24,6 @@ struct CameraGuiData {
     std::atomic<int> g_param_dilitation_hor{ 0 };
     std::atomic<int> g_param_dilitation_vert{ 0 };
     std::atomic<int> g_param_threshold{ 100 };
+
+    bool is_connected = false;
 };

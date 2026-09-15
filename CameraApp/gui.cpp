@@ -199,17 +199,43 @@ void updateCameraTexture(CameraGuiData& g_cam, CameraLocalFrames& l_cam, int cam
     }
 
     std::string cam_index = "Camera " + std::to_string(cam_idx);
-
-    // Adjust  numbers based on your picture dimensions and slider spacing
-    ImVec2 fixed_size(850.0f, 400.0f);
-
-    // ImGuiCond_Always forces the layout to respect this size every single time the app runs
+    ImVec2 fixed_size(850.0f, 400.0f); //numbers based on picture dimensions and slider spacing
     ImGui::SetNextWindowSize(fixed_size, ImGuiCond_Always);
-
-    // This removes the tiny dragging triangle from the bottom-right corner of the window
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoResize;
 
     ImGui::Begin(cam_index.c_str(),NULL, window_flags);
+
+    // --- CAMERA CONNECTION STATUS INDICATOR ---
+    float circle_radius = 6.0f;
+
+    ImVec2 cursor_pos = ImGui::GetCursorScreenPos();
+    ImGui::Dummy(ImVec2(circle_radius * 2.0f + 4.0f, circle_radius * 2.0f));
+
+    // Calculate the absolute center position for drawing the circle
+    ImVec2 circle_center = ImVec2(cursor_pos.x + circle_radius, cursor_pos.y + circle_radius + 2.0f);
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+    // Select color and text based on the connection state variable we created in step 1
+    ImU32 status_color;
+    std::string status_text;
+
+    if (g_cam.is_connected) {
+        status_color = IM_COL32(0, 255, 0, 255);       // Green
+        status_text = "Camera connected";
+    }
+    else {
+        status_color = IM_COL32(255, 0, 0, 255);       // Red
+        status_text = "Camera not connected";
+    }
+
+    // Draw the circle and append the text to its right side
+    draw_list->AddCircleFilled(circle_center, circle_radius, status_color);
+    ImGui::SameLine();
+    ImGui::Text("%s", status_text.c_str());
+
+    ImGui::Separator();
+    // ==========================================
+
 
     // Parameters inputs
     if (ImGui::SliderInt("Max area limit", &ui_max_area_limit, 100, 20000)) { 

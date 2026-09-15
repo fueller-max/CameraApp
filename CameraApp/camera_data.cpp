@@ -19,9 +19,9 @@ int16_t CameraData::getRelativeAngle() const {
 std::vector<uint8_t> CameraData::serialize() const {
     std::vector<uint8_t> buffer;
 
-    // Serialize '_objectDetected' (Trivial type)
+    // Serialize 'objectDetected' (Trivial type)
     append_to_buffer(buffer, &_objectDetected, sizeof(_objectDetected));
-    // Serialize '_objectDetected' (Trivial type)
+    // Serialize 'relative angle' (Trivial type)
     append_to_buffer(buffer, &_relativeAngle, sizeof(_relativeAngle));
     return buffer;
 };
