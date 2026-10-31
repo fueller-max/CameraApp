@@ -119,10 +119,10 @@ int main() {
             while (true) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // sleep for 1 second before sending the status message
                 CameraStatus cameras_status;
-                if (!g_cam1.is_connected) {
+                if (g_cam1.is_connected) {
                     cameras_status.setCamera1Connected();
                 }
-                if (!g_cam2.is_connected) {
+                if (g_cam2.is_connected) {
                     cameras_status.setCamera2Connected();
                 }
 

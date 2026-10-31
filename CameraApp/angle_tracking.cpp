@@ -115,7 +115,7 @@ std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_di
 
     double relative_angle = 0.0;
 
-    // Create a color background canvas to draw your green/blue UI bounding boxes on
+    // Create a color background canvas to draw green/blue UI bounding boxes on
     cv::Mat display_output;
 
     // Convert raw data to 8-bit for UI display purposes
