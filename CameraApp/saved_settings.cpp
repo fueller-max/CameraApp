@@ -19,19 +19,15 @@ namespace saved_settings {
 
             cam_data1.g_param_max_area = loadedData.cam1.param_max_area;
             cam_data1.g_param_min_area = loadedData.cam1.param_min_area;
-            cam_data1.g_param_errosion_hor = loadedData.cam1.param_errosion_hor;
-            cam_data1.g_param_errosion_vert = loadedData.cam1.param_errosion_vert;
-            cam_data1.g_param_dilitation_hor = loadedData.cam1.param_dilitation_hor;
-            cam_data1.g_param_dilitation_vert = loadedData.cam1.param_dilitation_vert;
-            cam_data1.g_param_threshold = loadedData.cam1.param_threshold;
+            cam_data1.g_param_errosion_size = loadedData.cam1.param_errosion_size;
+            cam_data1.g_param_dillitation_size = loadedData.cam1.param_dillitation_size;
+            cam_data1.g_param_distance_mm = loadedData.cam1.param_distance_mm;
 
             cam_data2.g_param_max_area = loadedData.cam2.param_max_area;
             cam_data2.g_param_min_area = loadedData.cam2.param_min_area;
-            cam_data2.g_param_errosion_hor = loadedData.cam2.param_errosion_hor;
-            cam_data2.g_param_errosion_vert = loadedData.cam2.param_errosion_vert;
-            cam_data2.g_param_dilitation_hor = loadedData.cam2.param_dilitation_hor;
-            cam_data2.g_param_dilitation_vert = loadedData.cam2.param_dilitation_vert;
-            cam_data2.g_param_threshold = loadedData.cam2.param_threshold;
+            cam_data2.g_param_errosion_size = loadedData.cam2.param_errosion_size;
+            cam_data2.g_param_dillitation_size = loadedData.cam2.param_dillitation_size;
+            cam_data2.g_param_distance_mm = loadedData.cam2.param_distance_mm;
         }
 
         return inFile.good();

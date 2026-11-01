@@ -9,11 +9,9 @@ namespace saved_settings {
     struct SavedSettings {
         int param_max_area;
         int param_min_area;
-        int param_errosion_hor;
-        int param_errosion_vert;
-        int param_dilitation_hor;
-        int param_dilitation_vert;
-        int param_threshold;
+        int param_errosion_size;
+        int param_dillitation_size;
+        int param_distance_mm;
     };
 
 

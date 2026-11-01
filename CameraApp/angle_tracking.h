@@ -13,20 +13,16 @@
 // Define a static reference vector or axis if needed (Default is the horizontal X-axis: 0 degrees)
 const double STATIC_AXIS_ANGLE = 0.0;
 
-// process a frame and calculate relative angle - version for Amplitude frame!
-std::tuple<cv::Mat, CameraData> processAndFindRotationAmpl(const cv::Mat& raw_amplitude, int threshold, int min_area);
 
 // process a frame and calculate relative angle - version for Distance frame!
-std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_distance,
-                                                           int threshold,
-                                                           int min_area_limit,
-                                                           int max_area_limit,
-                                                           int errosion_hor,
-                                                           int errosion_vert,
-                                                           int dillitation_hor,
-                                                           int dillitation_vert);
+std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& distance_masked,
+                                                           uint16_t min_area_limit,
+                                                           uint16_t max_area_limit,
+                                                           uint16_t errosion_size,
+                                                           uint16_t dilitation_size);
 
 cv::Mat pictureProcessAndGetAmplitude(ifm3d::Buffer& ifm_amplitude);
 
 cv::Mat pictureProcessAndGetDistanceHuman(ifm3d::Buffer& ifm_distance);  // prepare frame for visulazation (colored)
-cv::Mat pictureProcessAndGetDistance(ifm3d::Buffer& ifm_distance);       // prepare frame for analyze (gray-scale)
+
+cv::Mat pictureProcessAndGetDistance(ifm3d::Buffer& ifm_distance, uint16_t threshold_mm);       // prepare frame(with distance thresholding) for analyze  (gray-scale)

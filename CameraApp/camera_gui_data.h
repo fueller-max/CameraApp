@@ -17,13 +17,11 @@ struct CameraGuiData {
     bool g_new_frame_available = false;
 
     // Atomic parameters (GUI Thread <-> OpenCV Thread) 
-    std::atomic<int> g_param_max_area{ 10000 };
-    std::atomic<int> g_param_min_area{ 200 };
-    std::atomic<int> g_param_errosion_hor{ 0 };
-    std::atomic<int> g_param_errosion_vert{ 0 };
-    std::atomic<int> g_param_dilitation_hor{ 0 };
-    std::atomic<int> g_param_dilitation_vert{ 0 };
-    std::atomic<int> g_param_threshold{ 100 };
+    std::atomic<uint16_t> g_param_max_area{ 10000 };
+    std::atomic<uint16_t> g_param_min_area{ 500 };
+    std::atomic<uint16_t> g_param_errosion_size{ 3 };
+    std::atomic<uint16_t> g_param_dillitation_size{ 3 };
+    std::atomic<uint16_t> g_param_distance_mm{ 1250 };
 
     bool is_connected = false;
 };

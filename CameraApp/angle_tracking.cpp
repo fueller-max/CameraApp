@@ -1,153 +1,37 @@
 
 #include "angle_tracking.h"
 
-std::tuple<cv::Mat, CameraData> processAndFindRotationAmpl(const cv::Mat& raw_amplitude, int threshold, int min_area) {
+std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& distance_masked, 
+                                                           uint16_t min_area_limit,
+                                                           uint16_t max_area_limit,
+                                                           uint16_t errosion_size,
+                                                           uint16_t dillitation_size) {
+                                                                                
 
     double relative_angle = 0.0;
-
+   
     //=============================================================================
-    //                       Image Preparation & Filtering
+    //                       Image  Filtering
     //=============================================================================
-    cv::Mat visual_8u, blurred, threshed;
-
-    //raw -> visulal_8u
-    cv::normalize(raw_amplitude, visual_8u, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-
-    // Smooth out ToF sensor noise
-    //visuall_8u -> blurred
-    cv::GaussianBlur(visual_8u, blurred, cv::Size(5, 5), 0);
-
-    // Thresholding to segment the object from the background
-    // Adjust the threshold value based on object's reflectivity/distance
-    //blurred -> threshed
-    cv::threshold(blurred, threshed, threshold, 255, cv::THRESH_BINARY);
-
-    // Convert to color image draw colorful bounding boxes and text
-    cv::Mat display_output;
-    cv::cvtColor(visual_8u, display_output, cv::COLOR_GRAY2BGR);
-    //=============================================================================
-     
+    
+    //morphology: errosion
+    if (errosion_size >= 1) {
+        cv::Mat kernel_open = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(errosion_size, errosion_size));
+        cv::morphologyEx(distance_masked, distance_masked, cv::MORPH_OPEN, kernel_open);                                // open ( imply errosion )
+    }
+    
+    //morphology: dillataion
+    if (dillitation_size >= 1) {
+        cv::Mat kernel_close = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(dillitation_size, dillitation_size));
+        cv::morphologyEx(distance_masked, distance_masked, cv::MORPH_CLOSE, kernel_close);                              // close ( imply dillitation )
+    }
+    
     //=============================================================================
     //                            Contour Extraction
     //=============================================================================
     std::vector<std::vector<cv::Point>> contours;
     std::vector<cv::Vec4i> hierarchy;
-    cv::findContours(threshed, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-   
-  
-    // Isolate the largest detected object (ignoring background specks)
-    double max_area = 0;
-    int largest_contour_idx = -1;
-
-    for (size_t i = 0; i < contours.size(); i++) {
-        double area = cv::contourArea(contours[i]);
-        if (area > max_area && area > 100) { // Reject contours smaller than 100 pixels
-            max_area = area;
-            largest_contour_idx = static_cast<int>(i);
-        }
-    }
-    //=============================================================================
-   
-    //=============================================================================
-    //                        Roation angle calculation
-    //============================================================================= 
-    
-    //Calculate Rotation Angle if an object is found
-    if (largest_contour_idx != -1) {
-        // Fit a minimum area rotated rectangle around the contour
-        cv::RotatedRect rotated_box = cv::minAreaRect(contours[largest_contour_idx]);
-
-        // Extract the raw angle from the bounding box
-        double detected_angle = rotated_box.angle;
-
-        // Handle OpenCV angle convention mapping (adjusts based on long vs short edge orientation)
-         if (rotated_box.size.width < rotated_box.size.height) {
-           detected_angle += 90.0;
-         }
-
-        // Compute relative rotation angle against your static baseline axis
-          relative_angle = detected_angle -  STATIC_AXIS_ANGLE;
-    
-        // Visualization & UI Overlay
-        // - Draw the contours
-        cv::drawContours(display_output, contours, largest_contour_idx, cv::Scalar(0, 255, 0), 2);
-
-        // - Draw the vertices of the rotated bounding box
-        cv::Point2f vertices[4];
-        rotated_box.points(vertices);
-        for (int i = 0; i < 4; i++) {
-            cv::line(display_output, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 0, 0), 2);
-        }
-
-        // - Mark the center of rotation
-        cv::circle(display_output, rotated_box.center, 5, cv::Scalar(0, 0, 255), -1);
-
-        // - Render the calculated angle onto the frame
-        std::string angle_text = "Rotation: " + cv::format("%.2f", relative_angle) + " deg";
-        cv::putText(display_output, angle_text, cv::Point(10, 20),
-            cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 255), 2);
-
-        std::cout << "Object detected at Center [" << rotated_box.center.x << ", " << rotated_box.center.y
-            << "] | Angle: " << relative_angle << "°" << std::endl;
-    }
-
-    //================================================================================
-    
-    // Upscale the image if neccessary
-    cv::Mat enlarged_output;
-    // Scale factor
-    cv::resize(display_output, enlarged_output, cv::Size(), 1.0, 1.0, cv::INTER_NEAREST);
-    
-    CameraData cam_data{ (largest_contour_idx != -1), static_cast<int16_t> (relative_angle) };
-   
-    return std::make_tuple( enlarged_output, cam_data );
-}
-
-
-std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_distance, 
-                                                           int threshold, 
-                                                           int min_area_limit, 
-                                                           int max_area_limit,
-                                                           int errosion_hor,
-                                                           int errosion_vert,
-                                                           int dilitation_hor,
-                                                           int dilitation_vert) {
-
-    double relative_angle = 0.0;
-
-    // Create a color background canvas to draw green/blue UI bounding boxes on
-    cv::Mat display_output;
-
-    // Convert raw data to 8-bit for UI display purposes
-    cv::Mat visual_8u;
-    cv::normalize(raw_distance, visual_8u, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-    cv::applyColorMap(visual_8u, display_output, cv::COLORMAP_JET);
-
-    //=============================================================================
-    //                       Image Preparation & Filtering
-    //=============================================================================
-    cv::Mat blurred, threshed;
-
-    // Smooth out ToF pixel noise 
-    cv::GaussianBlur(visual_8u, blurred, cv::Size(5, 5), 0);
-
-    // Hook: Since the object is DARKER than the conveyor, use THRESH_BINARY_INV.
-    // This turns your dark object white (255) and the bright belt black (0).
-    cv::threshold(blurred, threshed, 0, 255, cv::THRESH_BINARY_INV | cv::THRESH_OTSU); //  use dynamic threshold
-   // cv::threshold(blurred, threshed, threshold, 255, cv::THRESH_BINARY_INV );
-
-    cv::Mat kernel_open = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(errosion_hor, errosion_vert));   // open ( erase small points)
-    cv::morphologyEx(threshed, threshed, cv::MORPH_OPEN, kernel_open);
-
-   // cv::Mat kernel_close = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(dilitation_hor, dilitation_vert)); // close (diliation  erossion)
-   // cv::morphologyEx(threshed, threshed, cv::MORPH_CLOSE, kernel_close);
-
-    //=============================================================================
-    //                            Contour Extraction
-    //=============================================================================
-    std::vector<std::vector<cv::Point>> contours;
-    std::vector<cv::Vec4i> hierarchy;
-    cv::findContours(threshed, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    cv::findContours(distance_masked, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
     double max_area = 0;
     int largest_contour_idx = -1;
@@ -181,21 +65,18 @@ std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_di
 
         relative_angle = detected_angle - STATIC_AXIS_ANGLE;
 
-        // Draw UI elements over the colorized canvas
-        //cv::drawContours(threshed, contours, largest_contour_idx, cv::Scalar(255, 0, 0), 2);
-
         cv::Point2f vertices[4];
         rotated_box.points(vertices);
         for (int i = 0; i < 4; i++) {
-            cv::line(threshed, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 0, 0), 2);
+            cv::line(distance_masked, vertices[i], vertices[(i + 1) % 4], cv::Scalar(255, 0, 0), 2);
         }
 
         // - Mark the center of rotation
-        cv::circle(threshed, rotated_box.center, 5, cv::Scalar(255, 0, 0), -1);
+        cv::circle(distance_masked, rotated_box.center, 5, cv::Scalar(255, 0, 0), -1);
 
         // - Render the calculated angle onto the frame
         std::string angle_text = "Rotation: " + cv::format("%.2f", relative_angle) + " deg";
-        cv::putText(threshed, angle_text, cv::Point(10, 20),
+        cv::putText(distance_masked, angle_text, cv::Point(10, 20),
             cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(255, 255, 0), 2);
 
         std::cout << "Object detected at Center [" << rotated_box.center.x << ", " << rotated_box.center.y
@@ -205,7 +86,7 @@ std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& raw_di
     
     CameraData cam_data{ (largest_contour_idx != -1), static_cast<int16_t>(relative_angle) };
 
-    return std::make_tuple(threshed, cam_data);
+    return std::make_tuple(distance_masked, cam_data);
 }
 
 cv::Mat pictureProcessAndGetAmplitude(ifm3d::Buffer& ifm_amplitude) {
@@ -244,9 +125,45 @@ cv::Mat pictureProcessAndGetDistanceHuman(ifm3d::Buffer& ifm_distance) {
 
 }
 
-cv::Mat pictureProcessAndGetDistance(ifm3d::Buffer& ifm_distance) {
+cv::Mat pictureProcessAndGetDistance(ifm3d::Buffer& ifm_distance, uint16_t threshold_mm) {
+
+    int rows = ifm_distance.Height();
+    int cols = ifm_distance.Width();
+
+    cv::Mat output_mask(rows, cols, CV_8UC1);
     
-        // Return the native single-channel 16-bit map directly for processing
-        return cv::Mat(ifm_distance.Height(), ifm_distance.Width(), CV_16UC1, ifm_distance.Ptr<uint16_t>(0));
+    if (ifm_distance.DataFormat() == ifm3d::PixelFormat::FORMAT_16U) {
+
+        //Make masking (thresholding) operation on raw distance pic
+        //Keep values less than threshold mm (objects closer than the conveyor belt)
+        //Also explicitly filter out 0 (sensor noise / no-return). IFM returns "0" for invalid pixels 
+        for (int i = 0; i < rows; ++i) {
+ 
+            const uint16_t* src_ptr = ifm_distance.Ptr<uint16_t>(i);
+            uchar* dst_ptr = output_mask.ptr<uchar>(i);
+
+            for (int j = 0; j < cols; ++j) {
+                uint16_t val = src_ptr[j];
+
+                if (val != 0 && val < threshold_mm) {
+                    dst_ptr[j] = 255; 
+                }
+                else {
+                    dst_ptr[j] = 0;   
+                }
+            }
+        }
+     
+        return output_mask; 
+    
+    }
+    else
+    {
+        std::cout << "Wrong pixel format from iFM!";
+    }
+
+
+    // Return the native single-channel 16-bit map directly for processing
+    return cv::Mat(ifm_distance.Height(), ifm_distance.Width(), CV_16UC1, ifm_distance.Ptr<uint16_t>(0));
     
 }

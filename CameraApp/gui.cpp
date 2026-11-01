@@ -18,7 +18,7 @@ void GuiThreadWorker(CameraGuiData& g_cam1,
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Create Window & Context
-    GLFWwindow* window = glfwCreateWindow(900, 850, "Camera Control Panel", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(900, 800, "Camera Control Panel", NULL, NULL);
     if (!window) {
         std::cerr << "[GLFW Error] Failed to create window" << std::endl;
         glfwTerminate();
@@ -93,20 +93,16 @@ void GuiThreadWorker(CameraGuiData& g_cam1,
                 saved_settings::SavedSettings snapshot_cam1{};
                 snapshot_cam1.param_max_area = g_cam1.g_param_max_area.load();
                 snapshot_cam1.param_min_area = g_cam1.g_param_min_area.load();
-				snapshot_cam1.param_errosion_hor = g_cam1.g_param_errosion_hor.load();
-				snapshot_cam1.param_errosion_vert = g_cam1.g_param_errosion_vert.load();
-				snapshot_cam1.param_dilitation_hor = g_cam1.g_param_dilitation_hor.load();
-				snapshot_cam1.param_dilitation_vert = g_cam1.g_param_dilitation_vert.load();
-				snapshot_cam1.param_threshold = g_cam1.g_param_threshold.load();
+				snapshot_cam1.param_errosion_size = g_cam1.g_param_errosion_size.load();
+				snapshot_cam1.param_dillitation_size = g_cam1.g_param_dillitation_size.load();
+				snapshot_cam1.param_distance_mm = g_cam1.g_param_distance_mm.load();
 
                 saved_settings::SavedSettings snapshot_cam2{};
                 snapshot_cam2.param_max_area = g_cam2.g_param_max_area.load();
                 snapshot_cam2.param_min_area = g_cam2.g_param_min_area.load();
-                snapshot_cam2.param_errosion_hor = g_cam2.g_param_errosion_hor.load();
-                snapshot_cam2.param_errosion_vert = g_cam2.g_param_errosion_vert.load();
-                snapshot_cam2.param_dilitation_hor = g_cam2.g_param_dilitation_hor.load();
-                snapshot_cam2.param_dilitation_vert = g_cam2.g_param_dilitation_vert.load();
-                snapshot_cam2.param_threshold = g_cam2.g_param_threshold.load();
+                snapshot_cam2.param_errosion_size = g_cam2.g_param_errosion_size.load();
+                snapshot_cam2.param_dillitation_size = g_cam2.g_param_dillitation_size.load();
+                snapshot_cam2.param_distance_mm = g_cam2.g_param_distance_mm.load();
 
 
                 saved_settings::DualCameraSettings masterSnapshot;
@@ -138,7 +134,7 @@ void GuiThreadWorker(CameraGuiData& g_cam1,
     glfwTerminate();
 
     g_app_running = false; // Tells other threads to wrap up
-    std::cout << "[Thread Exit] GUI Thread stopped gracefully." << std::endl;
+    std::cout << "GUI Thread stopped" << std::endl;
 }
 
 
@@ -166,13 +162,11 @@ GLuint MatToTexture(const cv::Mat& mat) {
 
 void updateCameraTexture(CameraGuiData& g_cam, CameraLocalFrames& l_cam, int cam_idx) {
 
-    int ui_max_area_limit = g_cam.g_param_max_area.load();   // Max area
-    int ui_min_area_limit = g_cam.g_param_min_area.load();   // Min area
-    int ui_errosion_hor = g_cam.g_param_errosion_hor.load();   // Errosion  horizontal
-    int ui_errosion_vert = g_cam.g_param_errosion_vert.load(); // Errosion  vertical
-    int ui_dilitation_hor = g_cam.g_param_dilitation_hor.load();   // Dillitation  horizontal
-    int ui_dilitation_vert = g_cam.g_param_dilitation_vert.load(); // Dillitation  vertical
-    int ui_threshold = g_cam.g_param_threshold.load();       //Theshold
+    int ui_max_area_limit = g_cam.g_param_max_area.load();              // Max area
+    int ui_min_area_limit = g_cam.g_param_min_area.load();              // Min area
+    int ui_errosion_size = g_cam.g_param_errosion_size.load();          // Errosion  size
+    int ui_dillitation_size = g_cam.g_param_dillitation_size.load();    // Dillitation size
+    int g_param_distance_mm = g_cam.g_param_distance_mm.load();         // Distance theshold
 
     // Check for new frames from the vision pipeline
     bool update_texture = false;
@@ -246,17 +240,19 @@ void updateCameraTexture(CameraGuiData& g_cam, CameraLocalFrames& l_cam, int cam
         g_cam.g_param_min_area.store(ui_min_area_limit);
         saved_settings::make_settings_dirty();
     }
-    if (ImGui::SliderInt("Errosion, horizontal", &ui_errosion_hor, 0, 100)) { 
-        g_cam.g_param_errosion_hor.store(ui_errosion_hor);
+    if (ImGui::SliderInt("Distance threshold, mm", &g_param_distance_mm, 1000, 1500)) {
+        g_cam.g_param_distance_mm.store(g_param_distance_mm);
         saved_settings::make_settings_dirty();
     }
-    if (ImGui::SliderInt("Errosion, vertical", &ui_errosion_vert, 0, 100)) { 
-        g_cam.g_param_errosion_vert.store(ui_errosion_vert);
+    if (ImGui::SliderInt("Errosion size", &ui_errosion_size, 0, 10)) { 
+        g_cam.g_param_errosion_size.store(ui_errosion_size);
         saved_settings::make_settings_dirty();
     }
-   // if (ImGui::SliderInt("Dilitation, horizontal", &ui_dilitation_hor, 0, 100)) { g_cam.g_param_dilitation_hor.store(ui_dilitation_hor); }
-   // if (ImGui::SliderInt("Dilitation, vertical", &ui_dilitation_vert, 0, 100)) { g_cam.g_param_dilitation_vert.store(ui_dilitation_vert); }
-   // if (ImGui::SliderInt("Threshold", &ui_threshold, 0, 255)) { g_cam.g_param_threshold.store(ui_threshold); }
+    if (ImGui::SliderInt("Dilitation size", &ui_dillitation_size, 0, 10)) { 
+        g_cam.g_param_dillitation_size.store(ui_dillitation_size);
+        saved_settings::make_settings_dirty();
+    }
+    
 
     ImGui::Separator();
     ImGui::Text("Processing Images:");
