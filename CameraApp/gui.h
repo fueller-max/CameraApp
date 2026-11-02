@@ -15,8 +15,8 @@ void GuiThreadWorker(CameraGuiData& g_cam1,
 	                 CameraGuiData& g_cam2,
 	                 std::atomic<bool>& g_app_running);
 
-// Function to convert cv::Mat to OpenGL Texture
-GLuint MatToTexture(const cv::Mat& mat); 
+
+GLuint MatToTexture(const cv::Mat& mat, GLuint existingTextureID = 0);   // Function to convert cv::Mat to OpenGL Texture
 
 
 struct CameraLocalFrames{

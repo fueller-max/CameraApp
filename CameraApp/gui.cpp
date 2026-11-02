@@ -138,23 +138,51 @@ void GuiThreadWorker(CameraGuiData& g_cam1,
 }
 
 
-GLuint MatToTexture(const cv::Mat& mat) {
+GLuint MatToTexture(const cv::Mat& mat, GLuint existingTextureID) {
     if (mat.empty()) return 0;
 
-    // OpenCV uses BGR, OpenGL needs RGB (or RGBA)
-    cv::Mat rgb;
-    cv::cvtColor(mat, rgb, cv::COLOR_BGR2RGB);
+    GLenum inputFormat = GL_RGB;
+    cv::Mat tempMat;
 
-    GLuint textureID;
-    glGenTextures(1, &textureID);
-    glBindTexture(GL_TEXTURE_2D, textureID);
+    // Handle data format safely based on image channels
+    if (mat.channels() == 4) {
+        cv::cvtColor(mat, tempMat, cv::COLOR_BGRA2RGBA);
+        inputFormat = GL_RGBA;
+    }
+    else if (mat.channels() == 3) {
+        cv::cvtColor(mat, tempMat, cv::COLOR_BGR2RGB);
+        inputFormat = GL_RGB;
+    }
+    else if (mat.channels() == 1) {
+        tempMat = mat;
+        inputFormat = GL_RED;
+    }
 
-    // Set texture parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    GLuint textureID = existingTextureID;
 
-    // Upload pixels to the GPU
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, rgb.cols, rgb.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb.data);
+    // If no texture exists yet, generate it once
+    if (textureID == 0) {
+        glGenTextures(1, &textureID);
+        glBindTexture(GL_TEXTURE_2D, textureID);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        // Single-channel setup fix: Map the Single Red Channel pixel value to Red, Green, and Blue
+        if (mat.channels() == 1) {
+            GLint swizzleMask[] = { GL_RED, GL_RED, GL_RED, GL_ONE };
+            glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+        }
+
+        // Allocate the data store on the GPU
+        glTexImage2D(GL_TEXTURE_2D, 0, (mat.channels() == 1) ? GL_RGB : inputFormat,
+            tempMat.cols, tempMat.rows, 0, inputFormat, GL_UNSIGNED_BYTE, tempMat.data);
+    }
+    else {
+        // Texture already exists on the GPU! Just overwrite the pixels directly 
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tempMat.cols, tempMat.rows, inputFormat, GL_UNSIGNED_BYTE, tempMat.data);
+    }
 
     return textureID;
 }
@@ -183,13 +211,15 @@ void updateCameraTexture(CameraGuiData& g_cam, CameraLocalFrames& l_cam, int cam
 
     // Texture upload safely executes on this thread
     if (update_texture) {
-        if (l_cam.ui_texture_id1 != 0) glDeleteTextures(1, &l_cam.ui_texture_id1);
-        if (l_cam.ui_texture_id2 != 0) glDeleteTextures(1, &l_cam.ui_texture_id2);
-        if (l_cam.ui_texture_id3 != 0) glDeleteTextures(1, &l_cam.ui_texture_id3);
-
-        if (!l_cam.ui_local_frame1.empty()) l_cam.ui_texture_id1 = MatToTexture(l_cam.ui_local_frame1);
-        if (!l_cam.ui_local_frame2.empty()) l_cam.ui_texture_id2 = MatToTexture(l_cam.ui_local_frame2);
-        if (!l_cam.ui_local_frame3.empty()) l_cam.ui_texture_id3 = MatToTexture(l_cam.ui_local_frame3);
+        if (!l_cam.ui_local_frame1.empty()) {
+            l_cam.ui_texture_id1 = MatToTexture(l_cam.ui_local_frame1, l_cam.ui_texture_id1);
+        }
+        if (!l_cam.ui_local_frame2.empty()) {
+            l_cam.ui_texture_id2 = MatToTexture(l_cam.ui_local_frame2, l_cam.ui_texture_id2);
+        }
+        if (!l_cam.ui_local_frame3.empty()) {
+            l_cam.ui_texture_id3 = MatToTexture(l_cam.ui_local_frame3, l_cam.ui_texture_id3);
+        }
     }
 
     std::string cam_index = "Camera " + std::to_string(cam_idx);
@@ -289,8 +319,7 @@ void updateCameraTexture(CameraGuiData& g_cam, CameraLocalFrames& l_cam, int cam
 
 void cleanTextrue(CameraLocalFrames& l_cam) {
 
-    if (l_cam.ui_texture_id1 != 0) glDeleteTextures(1, &l_cam.ui_texture_id1);
-    if (l_cam.ui_texture_id2 != 0) glDeleteTextures(1, &l_cam.ui_texture_id2);
-    if (l_cam.ui_texture_id3 != 0) glDeleteTextures(1, &l_cam.ui_texture_id3);
-
+    if (l_cam.ui_texture_id1 != 0) { glDeleteTextures(1, &l_cam.ui_texture_id1); l_cam.ui_texture_id1 = 0; }
+    if (l_cam.ui_texture_id2 != 0) { glDeleteTextures(1, &l_cam.ui_texture_id2); l_cam.ui_texture_id2 = 0; }
+    if (l_cam.ui_texture_id3 != 0) { glDeleteTextures(1, &l_cam.ui_texture_id3); l_cam.ui_texture_id3 = 0; }
 }
