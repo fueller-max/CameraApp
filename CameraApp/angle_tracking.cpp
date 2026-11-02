@@ -55,14 +55,18 @@ std::tuple<cv::Mat, CameraData> processAndFindRotationDist(const cv::Mat& distan
     if (largest_contour_idx != -1) {
         cv::RotatedRect rotated_box = cv::minAreaRect(contours[largest_contour_idx]);
 
-        // Fix for modern OpenCV versions (4.x+): minAreaRect returns angles between 0 and 90 degrees.
+        // OpenCV versions (4.x+): minAreaRect returns angles between 0 and 90 degrees.
         // It always measures from the horizontal axis down to the first side it meets.
         double detected_angle = rotated_box.angle;
 
-        if (rotated_box.size.width < rotated_box.size.height) {
-            detected_angle += 90.0;
+      
+        if (detected_angle >= 45) {  //if angle > 45 make it "negative" for PLC (range 135..180)
+            detected_angle += 90.0;  // in order to reverse belt operation
         }
-
+        //if (rotated_box.size.width < rotated_box.size.height) { 
+        //        detected_angle += 90.0
+        //}
+      
         relative_angle = detected_angle - STATIC_AXIS_ANGLE;
 
         cv::Point2f vertices[4];
